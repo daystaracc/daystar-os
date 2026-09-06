@@ -65,10 +65,11 @@ export default async function OverviewPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Section title={t('cc.hero')} href="/products/hero"><HeroProducts products={data.heroProducts} locale={locale} stockLabels={{ critical: t('common.stock.critical'), low: t('common.stock.low'), ok: t('common.stock.ok'), overstock: t('common.stock.overstock'), dead: t('common.stock.dead') }} /></Section>
         <Section title={t('cc.contentWeek')} href="/content">
+          {/* Same responsive step-down as KpiCard: at 360px "117.8萬" wrapped onto two lines and clipped at the KPI size. */}
           <div className="card card-pad grid grid-cols-3 gap-4">
-            <div><div className="label">{t('cc.published')}</div><div className="kpi mt-1">{data.contentWeek.published}<span className="text-base text-ink-3"> / {data.contentWeek.target ?? '—'}</span></div></div>
-            <div><div className="label">{t('cc.views')}</div><div className="kpi mt-1">{compact(data.contentWeek.views, locale)}</div></div>
-            <div><div className="label">{t('cc.top')}</div><div className="mt-1 text-sm font-medium leading-snug">{data.contentWeek.top ? `${data.contentWeek.top.title} · ${compact(data.contentWeek.top.views, locale)}` : '—'}</div></div>
+            <div className="min-w-0"><div className="label">{t('cc.published')}</div><div className="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums sm:text-kpi">{data.contentWeek.published}<span className="text-base font-normal text-ink-3"> / {data.contentWeek.target ?? '—'}</span></div></div>
+            <div className="min-w-0"><div className="label">{t('cc.views')}</div><div className="mt-1 whitespace-nowrap text-2xl font-semibold tabular-nums sm:text-kpi">{compact(data.contentWeek.views, locale)}</div></div>
+            <div className="min-w-0"><div className="label">{t('cc.top')}</div><div className="mt-1 text-sm font-medium leading-snug">{data.contentWeek.top ? `${data.contentWeek.top.title} · ${compact(data.contentWeek.top.views, locale)}` : '—'}</div></div>
           </div>
         </Section>
       </div>
