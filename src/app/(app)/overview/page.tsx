@@ -43,8 +43,8 @@ export default async function OverviewPage() {
         statusLabel={t('cc.status')} statusText={t(`common.status.${data.status}`)} summary={data.summary.map(s => t(s.code as never, s.params))} />
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3"><RevenueTarget data={data.revenue} locale={locale} t={{ title: t('cc.revenueTitle', { month: monthName(data.revenue.month, locale) }), target: t('common.target'), currentPace: t('cc.currentPace'), requiredPace: t('cc.requiredPace'), projected: t('cc.projected'), daysRemaining: t('cc.daysRemaining'), gap: t('cc.gap'), perDay: t('cc.perDay'), status: t(`common.status.${data.revenue.status}`), expected: t('cc.expectedMarker') }} /></div>
-        <div className="lg:col-span-2"><AttentionList items={data.attention.map(a => ({ ...a, text: t(`attention.${a.code}` as never, a.params), severityLabel: t(`common.severity.${a.severity}`) }))} labels={{ title: t('cc.attention'), empty: t('cc.attentionEmpty'), view: t('common.view'), resolve: t('common.resolve'), dismiss: t('common.dismiss') }} /></div>
+        <div className="min-w-0 lg:col-span-3"><RevenueTarget data={data.revenue} locale={locale} t={{ title: t('cc.revenueTitle', { month: monthName(data.revenue.month, locale) }), target: t('common.target'), currentPace: t('cc.currentPace'), requiredPace: t('cc.requiredPace'), projected: t('cc.projected'), daysRemaining: t('cc.daysRemaining'), gap: t('cc.gap'), perDay: t('cc.perDay'), status: t(`common.status.${data.revenue.status}`), expected: t('cc.expectedMarker') }} /></div>
+        <div className="min-w-0 lg:col-span-2"><AttentionList items={data.attention.map(a => ({ ...a, text: t(`attention.${a.code}` as never, a.params), severityLabel: t(`common.severity.${a.severity}`) }))} labels={{ title: t('cc.attention'), empty: t('cc.attentionEmpty'), view: t('common.view'), resolve: t('common.resolve'), dismiss: t('common.dismiss') }} /></div>
       </div>
 
       <Section title={t('cc.kpis')}>
