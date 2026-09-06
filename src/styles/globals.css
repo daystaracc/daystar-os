@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------------------------
+   DAYSTAR OS design tokens — the only place colors, radius, shadows live.
+   Warm neutrals from the brand (cream / stone / brown / gold); status colors
+   carry meaning; no blue-dominant UI.
+   ------------------------------------------------------------------------- */
+:root {
+  --bg: 40 29% 96%;            /* #F7F4EF cream — app background */
+  --surface: 0 0% 100%;         /* cards, tables, drawers */
+  --muted: 40 22% 91%;          /* #EDE9E2 stone — subtle fills, hover rows */
+  --border: 37 19% 86%;         /* warm gray hairline */
+  --border-strong: 37 15% 76%;
+  --ink: 0 0% 7%;               /* #111111 primary text */
+  --ink-2: 0 0% 35%;            /* secondary text (#595959) */
+  --ink-3: 0 0% 45%;            /* #737373 labels, placeholders */
+  --brand-brown: 29 26% 23%;    /* #4B3A2C — primary actions */
+  --brand-gold: 39 47% 59%;     /* #C8A566 — hero / progress accents, used sparingly */
+  --brand-cream: 40 29% 96%;
+  --brand-stone: 40 22% 91%;
+  --accent: 29 26% 23%;         /* buttons & focus rings = brand brown */
+  --accent-soft: 29 26% 92%;
+  --ok: 152 46% 33%;            /* #2E7D4F healthy / completed */
+  --ok-soft: 152 40% 94%;
+  --warn: 36 72% 42%;           /* #B7791F warning / at risk */
+  --warn-soft: 36 70% 94%;
+  --bad: 6 60% 47%;             /* #C0392B critical / behind / overdue */
+  --bad-soft: 6 60% 95%;
+
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --shadow-card: 0 1px 2px rgba(17,17,17,.04), 0 0 0 1px hsl(var(--border));
+  --shadow-pop: 0 8px 24px rgba(17,17,17,.08), 0 0 0 1px hsl(var(--border));
+  --shadow-drawer: -12px 0 40px rgba(17,17,17,.10);
+}
+
+@layer base {
+  html { color-scheme: light; }
+  body { @apply bg-bg text-ink antialiased; font-feature-settings: "tnum" 1, "cv11" 1; }
+  ::selection { background: hsl(var(--brand-gold) / .35); }
+  :focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 2px; }
+  h1 { @apply text-2xl font-semibold tracking-tight; }
+  h2 { @apply text-lg font-semibold tracking-tight; }
+}
+
+@layer components {
+  .card { @apply rounded-lg bg-surface shadow-card; }
+  .card-pad { @apply p-5; }
+  .label { @apply text-label uppercase text-ink-3; }
+  .kpi { @apply text-kpi tabular-nums; }
+  .kpi-lg { @apply text-kpi-lg tabular-nums; }
+  .row-hover { @apply transition-colors duration-fast hover:bg-muted/60; }
+  .pill { @apply inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-medium; }
+  .pill-ok { @apply bg-ok-soft text-ok; } .pill-warn { @apply bg-warn-soft text-warn; } .pill-bad { @apply bg-bad-soft text-bad; } .pill-neutral { @apply bg-muted text-ink-2; }
+  .btn { @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors duration-fast disabled:opacity-50; }
+  .btn-primary { @apply btn bg-accent text-white hover:bg-accent/90; }
+  .btn-ghost { @apply btn text-ink-2 hover:bg-muted; }
+  .btn-outline { @apply btn border border-border bg-surface hover:bg-muted; }
+  .input { @apply h-9 w-full rounded-md border border-border bg-surface px-3 text-sm placeholder:text-ink-3 focus:border-border-strong; }
+}
