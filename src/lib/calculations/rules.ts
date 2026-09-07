@@ -28,7 +28,18 @@ export interface RulesSnapshot {
   incomingLate: { id: string; name: string; eta: string }[];
   projects: { id: string; name: string; deadline: string | null; progressPct: number; openTasks: number; status: string }[];
   tasks: { overdueUrgent: number; overdueHigh: number; blocked: number };
-  content: { publishedThisWeek: number; weeklyTarget: number | null; weekElapsedFraction: number };
+  content: {
+    publishedThisWeek: number; weeklyTarget: number | null; weekElapsedFraction: number;
+    /** Rolling windows ending on `asOf`, so a stall shows within days rather than at month end. */
+    publishedLast3Days: number; publishedLast7Days: number;
+  };
+  /**
+   * Paid spend, as a streak rather than a total: August 2026 lost NT$429K of revenue
+   * because posting and ad spend both stopped, and a monthly total hides that for weeks.
+   */
+  ads: { zeroOrMissingDays: number; prior14DayAverage: number };
+  /** Order volume is the leading indicator — revenue pacing lags it by days. */
+  ordersPerDay: { last7: number | null; prev28: number | null };
   keyResults: (KeyResultLike & { id: string; title: string; periodStart?: string })[];
   reviews: { weeklyDue: string | null; weeklyDone: boolean };
   operations: { ordersWaiting: number; csOpenOver24h: number; csPending: number };
@@ -88,6 +99,44 @@ export function evaluateRules(s: RulesSnapshot): AttentionItem[] {
     }
   }
 
+  // 5b. Content output has stopped, not just slipped. Either nothing at all for three
+  // days, or under half the weekly target across the last seven.
+  {
+    const stalled = s.content.publishedLast3Days === 0;
+    const halved = s.content.weeklyTarget !== null && s.content.publishedLast7Days < s.content.weeklyTarget * 0.5;
+    if (stalled || halved) {
+      push({
+        code: 'content_output_stopped', severity: 'high', entityType: 'content',
+        params: { days3: s.content.publishedLast3Days, days7: s.content.publishedLast7Days, target: s.content.weeklyTarget ?? 0 },
+        href: '/content?view=calendar',
+      });
+    }
+  }
+
+  // 5c. Paid spend has stopped while it was previously running.
+  if (s.ads.prior14DayAverage > 0 && s.ads.zeroOrMissingDays >= 3) {
+    push({
+      code: 'ad_spend_stopped', severity: 'high', entityType: 'revenue',
+      params: { days: s.ads.zeroOrMissingDays, average: Math.round(s.ads.prior14DayAverage) },
+      href: '/marketing',
+    });
+  }
+
+  // 5d. Order volume falling — this leads revenue, which only shows up in pacing later.
+  {
+    const { last7, prev28 } = s.ordersPerDay;
+    if (last7 !== null && prev28 !== null && prev28 > 0) {
+      const dropPct = ((prev28 - last7) / prev28) * 100;
+      if (dropPct >= 20) {
+        push({
+          code: 'orders_per_day_declining', severity: dropPct >= 30 ? 'critical' : 'high', entityType: 'revenue',
+          params: { pct: Math.round(dropPct), last7: round1(last7), prev28: round1(prev28) },
+          href: '/revenue',
+        });
+      }
+    }
+  }
+
   // 6. AOV and CVR
   if (s.aov.current !== null && s.aov.previous) {
     const chg = ((s.aov.current - s.aov.previous) / s.aov.previous) * 100;
@@ -141,6 +190,8 @@ export function executiveSummary(s: RulesSnapshot, alerts: AttentionItem[]): { c
   if (s.content.weeklyTarget) lines.push({ code: alerts.some(a => a.code === 'content_behind') ? 'summary.content_behind' : 'summary.content_on_target', params: { published: s.content.publishedThisWeek, target: s.content.weeklyTarget } });
   return lines.slice(0, 5);
 }
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
 
 function dayDiff(a: string, b: string): number {
   const p = (x: string) => { const [y, m, d] = x.slice(0, 10).split('-').map(Number); return Date.UTC(y, m - 1, d); };

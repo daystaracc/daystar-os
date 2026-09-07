@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import { computePacing, monthBounds, weekBounds, daysBetween, previousMonthToDate, type Pacing } from '@/lib/calculations/pacing';
+import { computePacing, monthBounds, weekBounds, daysBetween, previousMonthToDate, shiftDays, type Pacing } from '@/lib/calculations/pacing';
 import { sumRevenue, aov, conversionRate, grossMarginPct, type DailySales } from '@/lib/calculations/finance';
 import { weeksOfSupply, stockStatus, inventoryValuation, type StockStatus } from '@/lib/calculations/inventory';
 import { projectHealth, type ProjectHealth } from '@/lib/calculations/goals';
@@ -32,7 +32,7 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
   const sb = await createClient();
   const m = monthBounds(asOf); const prevM = monthBounds(shiftMonth(m.start, -1)); const w = weekBounds(asOf);
 
-  const [targets, salesM, salesPrev, tasks, projects, progress, products, inventory, sales30, content, systems, ops, cs, fin, crm, dismissals, activity, kr, review] = await Promise.all([
+  const [targets, salesM, salesPrev, tasks, projects, progress, products, inventory, sales30, content, systems, ops, cs, fin, crm, dismissals, activity, kr, review, recentContent, recentAds, recentOrders] = await Promise.all([
     sb.from('targets').select('metric, value, period_start, period_end').eq('organization_id', orgId).lte('period_start', asOf).gte('period_end', asOf),
     sb.from('v_sales_daily_total').select('*').eq('organization_id', orgId).gte('date', m.start).lte('date', m.end),
     sb.from('v_sales_daily_total').select('*').eq('organization_id', orgId).gte('date', prevM.start).lte('date', prevM.end),
@@ -52,6 +52,11 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
     sb.from('activity_logs').select('id, summary, created_at, profiles:actor_id(display_name)').eq('organization_id', orgId).order('created_at', { ascending: false }).limit(8),
     sb.from('key_results').select('id, title, title_zh, start_value, current_value, target_value, direction, deadline, objectives(start_date)').eq('organization_id', orgId).neq('status', 'completed'),
     sb.from('reviews').select('period_start, status').eq('organization_id', orgId).eq('type', 'weekly').order('period_start', { ascending: false }).limit(1).maybeSingle(),
+    // Rolling windows for the stall rules: content in the last 7 days, ad spend and
+    // order volume over the last 35, all ending on asOf.
+    sb.from('content').select('publish_date, status').eq('organization_id', orgId).eq('status', 'published').gte('publish_date', shiftDays(asOf, -6)).lte('publish_date', asOf),
+    sb.from('ad_spend_daily').select('date, spend').eq('organization_id', orgId).gte('date', shiftDays(asOf, -34)).lte('date', asOf),
+    sb.from('v_sales_daily_total').select('date, orders').eq('organization_id', orgId).gte('date', shiftDays(asOf, -34)).lte('date', asOf),
   ]);
 
   const target = (metric: string) => Number(targets.data?.find(t => t.metric === metric)?.value ?? NaN) || null;
@@ -117,7 +122,13 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
     incomingLate: stockRows.filter(r => r.incoming > 0 && r.eta && r.eta < asOf).map(r => ({ id: r.id, name: r.name, eta: r.eta! })),
     projects: projectRows.map(p => ({ id: p.id, name: p.name, deadline: p.deadline, progressPct: p.progress, openTasks: p.open, status: p.status })),
     tasks: { overdueUrgent: overdue.filter(t => t.priority === 'urgent').length, overdueHigh: overdue.filter(t => t.priority === 'high').length, blocked: allTasks.filter(t => t.status === 'blocked').length },
-    content: { publishedThisWeek: published.length, weeklyTarget, weekElapsedFraction: weekElapsed },
+    content: {
+      publishedThisWeek: published.length, weeklyTarget, weekElapsedFraction: weekElapsed,
+      publishedLast3Days: countPublishedSince(recentContent.data, shiftDays(asOf, -2), asOf),
+      publishedLast7Days: countPublishedSince(recentContent.data, shiftDays(asOf, -6), asOf),
+    },
+    ads: adSpendStreak(recentAds.data, asOf),
+    ordersPerDay: ordersPerDayAverages(recentOrders.data, asOf),
     keyResults: (kr.data ?? []).map(k => ({ id: k.id, title: localizedField(k, 'title', locale), start_value: Number(k.start_value), current_value: Number(k.current_value), target_value: Number(k.target_value), direction: k.direction === 'decrease' ? 'decrease' as const : 'increase' as const, deadline: k.deadline, periodStart: (k.objectives as { start_date: string } | null)?.start_date })),
     reviews: { weeklyDue: nextMonday(asOf), weeklyDone: !!review.data && review.data.period_start >= w.start && review.data.status === 'completed' },
     operations: { ordersWaiting: Number(ops.data?.orders_waiting ?? 0), csPending: (cs.data ?? []).length, csOpenOver24h: (cs.data ?? []).filter(c => Date.parse(c.last_response_at ?? c.created_at) < Date.parse(asOf) - 86_400_000).length },
@@ -169,6 +180,45 @@ function toDailySales(rows: { date: string | null; orders: number | null; gross_
 function firstKnownCost(...candidates: (number | null | undefined)[]): number | null {
   for (const c of candidates) if (c !== null && c !== undefined && Number.isFinite(Number(c))) return Number(c);
   return null;
+}
+
+/** Published pieces with a publish_date inside [from, to]. */
+function countPublishedSince(rows: { publish_date: string | null }[] | null, from: string, to: string): number {
+  return (rows ?? []).filter(r => r.publish_date && r.publish_date >= from && r.publish_date <= to).length;
+}
+
+/**
+ * How many consecutive days up to `asOf` have no spend, and what the 14 days before
+ * that streak averaged. A missing row counts as zero — not spending and not recording
+ * look the same from the outside, and both mean the ads are off.
+ */
+function adSpendStreak(rows: { date: string | null; spend: number | null }[] | null, asOf: string): { zeroOrMissingDays: number; prior14DayAverage: number } {
+  const byDay = new Map<string, number>();
+  for (const r of rows ?? []) if (r.date) byDay.set(r.date, (byDay.get(r.date) ?? 0) + Number(r.spend ?? 0));
+
+  let zeroOrMissingDays = 0;
+  while (zeroOrMissingDays < 35 && (byDay.get(shiftDays(asOf, -zeroOrMissingDays)) ?? 0) <= 0) zeroOrMissingDays += 1;
+
+  let total = 0;
+  for (let i = 0; i < 14; i += 1) total += byDay.get(shiftDays(asOf, -(zeroOrMissingDays + i))) ?? 0;
+  return { zeroOrMissingDays, prior14DayAverage: total / 14 };
+}
+
+/** Mean orders/day over the last 7 days, and over the 28 before those. */
+function ordersPerDayAverages(rows: { date: string | null; orders: number | null }[] | null, asOf: string): { last7: number | null; prev28: number | null } {
+  const byDay = new Map<string, number>();
+  for (const r of rows ?? []) if (r.date) byDay.set(r.date, (byDay.get(r.date) ?? 0) + Number(r.orders ?? 0));
+  if (!byDay.size) return { last7: null, prev28: null };
+
+  const mean = (offset: number, days: number) => {
+    let sum = 0;
+    for (let i = 0; i < days; i += 1) sum += byDay.get(shiftDays(asOf, -(offset + i))) ?? 0;
+    return sum / days;
+  };
+  const earliest = [...byDay.keys()].sort()[0];
+  // Only claim a baseline once there is history behind the recent week.
+  const hasBaseline = earliest <= shiftDays(asOf, -14);
+  return { last7: mean(0, 7), prev28: hasBaseline ? mean(7, 28) : null };
 }
 
 const PRIO: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };

@@ -59,6 +59,9 @@ export const en = {
     review_overdue: 'Weekly Business Review is {days} day(s) overdue.',
     cs_stale: '{count} customer service case(s) have waited over 24 hours.',
     orders_waiting: '{count} order(s) waiting to ship.',
+    content_output_stopped: 'Content output has stopped — {days3} pieces in the last 3 days, {days7} in the last 7 (target {target}/week).',
+    ad_spend_stopped: 'Paid ad spend has been zero for {days} days; it averaged NT${average}/day over the previous 14.',
+    orders_per_day_declining: 'Orders are down {pct}% — {last7}/day over the last week vs {prev28}/day over the previous four.',
     system_critical: '{system} scored 1/5 — next action: {next}',
   },
   summary: {

@@ -75,6 +75,11 @@ export function computePacing(input: PacingInput): Pacing {
            requiredPace, actualPace, projectedFinish, variance, variancePct, status };
 }
 
+/** Shifts an ISO date by whole days. */
+export function shiftDays(isoDate: string, days: number): string {
+  return new Date(toUTC(isoDate) + days * DAY).toISOString().slice(0, 10);
+}
+
 /** Month helpers for the monthly revenue target component. */
 export function monthBounds(isoDate: string): { start: string; end: string } {
   const [y, m] = isoDate.slice(0, 10).split('-').map(Number);

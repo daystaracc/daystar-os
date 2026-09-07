@@ -139,7 +139,9 @@ test('rules: the seed snapshot surfaces the right problems in the right order', 
       { id: 'p2', name: 'Website CRO Upgrade', deadline: '2026-09-09', progressPct: 25, openTasks: 3, status: 'active' },
     ],
     tasks: { overdueUrgent: 1, overdueHigh: 1, blocked: 1 },
-    content: { publishedThisWeek: 11, weeklyTarget: 20, weekElapsedFraction: 6 / 7 },
+    content: { publishedThisWeek: 11, weeklyTarget: 20, weekElapsedFraction: 6 / 7, publishedLast3Days: 4, publishedLast7Days: 12 },
+    ads: { zeroOrMissingDays: 0, prior14DayAverage: 3200 },
+    ordersPerDay: { last7: 21, prev28: 22 },
     keyResults: [{ id: 'kr1', title: 'Repeat revenue ≥ 15%', start_value: 8, current_value: 9.5, target_value: 15, deadline: '2026-12-31', periodStart: '2026-04-01' }],
     reviews: { weeklyDue: '2026-09-08', weeklyDone: false },
     operations: { ordersWaiting: 3, csOpenOver24h: 0, csPending: 6 },
@@ -187,4 +189,100 @@ test('unknown cost is unknown, never zero', () => {
   const full = inventoryValuation([{ onHand: 10, unitCost: 100 }, { onHand: 2, unitCost: 50 }]);
   assert.deepEqual(full, { value: 1100, uncostedProducts: 0, uncostedUnits: 0, complete: true });
   assert.equal(full.complete, true, 'a fully costed catalogue still reports a number');
+});
+
+/** A snapshot with every rule quiet, so each test below only fires the rule it is about. */
+function quietSnapshot(): RulesSnapshot {
+  return {
+    asOf: '2026-09-05',
+    revenue: computePacing({ target: 100, actual: 50, periodStart: '2026-09-01', periodEnd: '2026-09-30', asOf: '2026-09-16' }),
+    aov: { current: null, previous: null, target: null },
+    cvr: { current: null, target: null },
+    heroProducts: [], incomingLate: [], projects: [],
+    tasks: { overdueUrgent: 0, overdueHigh: 0, blocked: 0 },
+    content: { publishedThisWeek: 20, weeklyTarget: 20, weekElapsedFraction: 1, publishedLast3Days: 9, publishedLast7Days: 20 },
+    ads: { zeroOrMissingDays: 0, prior14DayAverage: 3200 },
+    ordersPerDay: { last7: 22, prev28: 22 },
+    keyResults: [], reviews: { weeklyDue: null, weeklyDone: true },
+    operations: { ordersWaiting: 0, csOpenOver24h: 0, csPending: 0 },
+    systems: [], dismissals: [],
+  };
+}
+const codesOf = (s: RulesSnapshot) => evaluateRules(s).map(a => a.code);
+const find = (s: RulesSnapshot, code: string) => evaluateRules(s).find(a => a.code === code);
+
+test('rule: content_output_stopped fires on a stall or a halved week', () => {
+  const base = quietSnapshot();
+  assert.ok(!codesOf(base).includes('content_output_stopped'), 'healthy output stays quiet');
+
+  // nothing published for three days, even though the week looks fine
+  const stalled = quietSnapshot();
+  stalled.content.publishedLast3Days = 0;
+  assert.equal(find(stalled, 'content_output_stopped')?.severity, 'high');
+
+  // still posting, but under half the weekly target across seven days
+  const halved = quietSnapshot();
+  halved.content.publishedLast7Days = 9; // target 20 → under 50%
+  assert.ok(codesOf(halved).includes('content_output_stopped'));
+
+  // exactly half is not "stopped"
+  const atHalf = quietSnapshot();
+  atHalf.content.publishedLast7Days = 10;
+  assert.ok(!codesOf(atHalf).includes('content_output_stopped'));
+});
+
+test('rule: ad_spend_stopped needs a prior spend history', () => {
+  const stopped = quietSnapshot();
+  stopped.ads = { zeroOrMissingDays: 3, prior14DayAverage: 3200 };
+  assert.equal(find(stopped, 'ad_spend_stopped')?.severity, 'high');
+  assert.deepEqual(find(stopped, 'ad_spend_stopped')?.params, { days: 3, average: 3200 });
+
+  // two days off is not a stop
+  const brief = quietSnapshot();
+  brief.ads = { zeroOrMissingDays: 2, prior14DayAverage: 3200 };
+  assert.ok(!codesOf(brief).includes('ad_spend_stopped'));
+
+  // never spent anything: silence, not an alert about stopping
+  const neverRan = quietSnapshot();
+  neverRan.ads = { zeroOrMissingDays: 30, prior14DayAverage: 0 };
+  assert.ok(!codesOf(neverRan).includes('ad_spend_stopped'));
+});
+
+test('rule: orders_per_day_declining is the leading indicator, critical at 30%', () => {
+  const mild = quietSnapshot();
+  mild.ordersPerDay = { last7: 18, prev28: 22 };   // -18.2%
+  assert.ok(!codesOf(mild).includes('orders_per_day_declining'), 'under 20% is noise');
+
+  const high = quietSnapshot();
+  high.ordersPerDay = { last7: 17, prev28: 22 };   // -22.7%
+  assert.equal(find(high, 'orders_per_day_declining')?.severity, 'high');
+
+  const critical = quietSnapshot();
+  critical.ordersPerDay = { last7: 15, prev28: 22 }; // -31.8%
+  assert.equal(find(critical, 'orders_per_day_declining')?.severity, 'critical');
+
+  // no history yet → no claim
+  const noHistory = quietSnapshot();
+  noHistory.ordersPerDay = { last7: 5, prev28: null };
+  assert.ok(!codesOf(noHistory).includes('orders_per_day_declining'));
+});
+
+test('rules: the real August 2026 collapse would have surfaced within days', () => {
+  // July: 928 orders over 31 days = 29.9/day. August: 443 over 31 = 14.3/day.
+  // Posting and ad spend both stopped; AOV actually rose, so the loss was volume.
+  const s = quietSnapshot();
+  s.content = { publishedThisWeek: 0, weeklyTarget: 20, weekElapsedFraction: 1, publishedLast3Days: 0, publishedLast7Days: 0 };
+  s.ads = { zeroOrMissingDays: 6, prior14DayAverage: 3200 };
+  s.ordersPerDay = { last7: 14.3, prev28: 29.9 };
+
+  const alerts = evaluateRules(s);
+  const codes = alerts.map(a => a.code);
+  assert.ok(codes.includes('content_output_stopped'));
+  assert.ok(codes.includes('ad_spend_stopped'));
+  assert.ok(codes.includes('orders_per_day_declining'));
+
+  // the volume collapse (-52%) outranks the two causes, and leads the list
+  assert.equal(alerts[0].code, 'orders_per_day_declining');
+  assert.equal(alerts[0].severity, 'critical');
+  assert.equal(alerts[0].params.pct, 52);
 });

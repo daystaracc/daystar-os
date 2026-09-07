@@ -1,6 +1,6 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
-import { monthBounds, weekBounds } from '@/lib/calculations/pacing';
+import { monthBounds, weekBounds, shiftDays } from '@/lib/calculations/pacing';
 import { localizedField, type Locale } from '@/lib/i18n';
 import { canEditTask, canDeleteTask, type Role } from '@/lib/permissions';
 import type { TaskPriority, TaskStatus } from '@/lib/tasks/constants';
@@ -51,7 +51,6 @@ export interface TasksPage {
 
 /** Done tasks stay visible for two weeks so the Kanban "Done" column and the list keep recent context without growing forever. */
 const DONE_WINDOW_DAYS = 14;
-const shiftDays = (iso: string, days: number) => new Date(Date.parse(iso) + days * 86_400_000).toISOString().slice(0, 10);
 
 const PRIO: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
 const STATUS_ORDER: Record<string, number> = { blocked: 0, in_progress: 1, review: 2, todo: 3, backlog: 4, done: 5 };

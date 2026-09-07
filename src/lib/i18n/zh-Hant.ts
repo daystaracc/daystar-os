@@ -61,6 +61,9 @@ export const zhHant: Dictionary = {
     review_overdue: 'Weekly Business Review 已逾期 {days} 天。',
     cs_stale: '{count} 件客服案件等超過 24 小時。',
     orders_waiting: '{count} 筆訂單待出貨。',
+    content_output_stopped: '內容產出已停擺——近 3 天 {days3} 則，近 7 天 {days7} 則（目標每週 {target} 則）。',
+    ad_spend_stopped: '付費廣告已連續 {days} 天沒有投放；前 14 天平均每天 NT${average}。',
+    orders_per_day_declining: '訂單量下滑 {pct}%——近一週每天 {last7} 張，前四週每天 {prev28} 張。',
     system_critical: '{system} 只有 1／5 分——下一步：{next}',
   },
   summary: {
