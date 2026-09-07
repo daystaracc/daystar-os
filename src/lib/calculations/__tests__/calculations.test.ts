@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { computePacing, monthBounds, weekBounds, previousMonthToDate } from '../pacing';
 import { formatTWD, formatTWDCompact, formatDelta, pctChange } from '../format';
 import { aov, contributionMargin, adMetrics, conversionRate } from '../finance';
-import { weeksOfSupply, stockStatus, abcClassify, reorderSuggestion, sellThroughPct } from '../inventory';
+import { weeksOfSupply, stockStatus, abcClassify, reorderSuggestion, sellThroughPct, inventoryValuation, productMarginPct } from '../inventory';
 import { keyResultProgress, keyResultStatus, projectHealth } from '../goals';
 import { healthScore, companyStatus } from '../health';
 import { evaluateRules, executiveSummary, type RulesSnapshot } from '../rules';
@@ -164,4 +164,27 @@ test('rules: the seed snapshot surfaces the right problems in the right order', 
   const summary = executiveSummary(snapshot, alerts);
   assert.ok(summary.length >= 3 && summary.length <= 5);
   assert.equal(summary[0].code, 'summary.revenue_behind');
+});
+
+test('unknown cost is unknown, never zero', () => {
+  // Showmore carries no cost, so imported products arrive with cost = null.
+  assert.equal(productMarginPct(1000, 400), 60);
+  assert.equal(productMarginPct(1000, 0), 100);      // a real zero cost is still 100%
+  assert.equal(productMarginPct(1000, null), null);  // unknown must not read as 100%
+  assert.equal(productMarginPct(1000, undefined), null);
+  assert.equal(productMarginPct(0, 400), null);
+  assert.equal(productMarginPct(null, 400), null);
+
+  // Valuation reports what it could not value instead of silently counting it as 0.
+  const mixed = inventoryValuation([
+    { onHand: 10, unitCost: 100 },   // 1000
+    { onHand: 5, unitCost: 200 },    // 1000
+    { onHand: 7, unitCost: null },   // unknown, holds stock
+    { onHand: 0, unitCost: null },   // unknown but empty — not a gap worth reporting
+  ]);
+  assert.deepEqual(mixed, { value: 2000, uncostedProducts: 1, uncostedUnits: 7, complete: false });
+
+  const full = inventoryValuation([{ onHand: 10, unitCost: 100 }, { onHand: 2, unitCost: 50 }]);
+  assert.deepEqual(full, { value: 1100, uncostedProducts: 0, uncostedUnits: 0, complete: true });
+  assert.equal(full.complete, true, 'a fully costed catalogue still reports a number');
 });

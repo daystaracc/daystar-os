@@ -76,6 +76,38 @@ export function abcClassify<T extends { id: string; revenue: number }>(items: T[
   return out;
 }
 
-export function inventoryValue(rows: { onHand: number; unitCost?: number | null }[]): number {
-  return rows.reduce((a, r) => a + r.onHand * Number(r.unitCost ?? 0), 0);
+export interface InventoryValuation {
+  /** Value of the stock we can actually cost. */
+  value: number;
+  /** Rows holding stock whose unit cost is unknown — excluded from `value`. */
+  uncostedProducts: number;
+  /** Units sitting in those uncosted rows. */
+  uncostedUnits: number;
+  /** True when every row holding stock has a cost, i.e. `value` is the whole picture. */
+  complete: boolean;
+}
+
+/**
+ * Values stock at unit cost, and says how much it could not value.
+ *
+ * A missing cost is unknown, not zero: Showmore carries no cost, so imported
+ * products arrive with `cost = null`. Silently treating that as 0 understates
+ * inventory value while looking like a confident number, so uncosted stock is
+ * counted separately and the UI shows "no cost data" instead of a total.
+ */
+export function inventoryValuation(rows: { onHand: number; unitCost?: number | null }[]): InventoryValuation {
+  let value = 0, uncostedProducts = 0, uncostedUnits = 0;
+  for (const r of rows) {
+    const known = r.unitCost !== null && r.unitCost !== undefined && Number.isFinite(Number(r.unitCost));
+    if (known) { value += r.onHand * Number(r.unitCost); continue; }
+    if (r.onHand > 0) { uncostedProducts += 1; uncostedUnits += r.onHand; }
+  }
+  return { value, uncostedProducts, uncostedUnits, complete: uncostedProducts === 0 };
+}
+
+/** Gross margin on a unit: null when the cost is unknown, never a fabricated 100%. */
+export function productMarginPct(price: number | null | undefined, cost: number | null | undefined): number | null {
+  if (price === null || price === undefined || !(Number(price) > 0)) return null;
+  if (cost === null || cost === undefined || !Number.isFinite(Number(cost))) return null;
+  return ((Number(price) - Number(cost)) / Number(price)) * 100;
 }

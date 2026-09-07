@@ -2,7 +2,7 @@ import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { computePacing, monthBounds, weekBounds, daysBetween, previousMonthToDate, type Pacing } from '@/lib/calculations/pacing';
 import { sumRevenue, aov, conversionRate, grossMarginPct, type DailySales } from '@/lib/calculations/finance';
-import { weeksOfSupply, stockStatus, inventoryValue, type StockStatus } from '@/lib/calculations/inventory';
+import { weeksOfSupply, stockStatus, inventoryValuation, type StockStatus } from '@/lib/calculations/inventory';
 import { projectHealth, type ProjectHealth } from '@/lib/calculations/goals';
 import { healthScore, companyStatus, type CompanyStatus } from '@/lib/calculations/health';
 import { evaluateRules, executiveSummary, type AttentionItem, type RulesSnapshot } from '@/lib/calculations/rules';
@@ -16,7 +16,7 @@ export interface CommandCenterData {
   summary: ReturnType<typeof executiveSummary>;
   revenue: Pacing & { month: string; previousMonthRevenue: number };
   attention: AttentionItem[];
-  kpis: { key: string; value: number | null; target: number | null; previous: number | null; unit: 'TWD' | 'percent' | 'count' }[];
+  kpis: { key: string; value: number | null; target: number | null; previous: number | null; unit: 'TWD' | 'percent' | 'count'; incomplete?: { uncostedProducts: number; uncostedUnits: number } }[];
   pulse: { revenueToday: number; ordersToday: number; waiting: number; csPending: number; lowStock: number; tasksDue: number; overdue: number; publishing: number };
   journey: { currentMonthlyRunRate: number; annualRunRate: number; stages: { label: string; monthly: number; targetDate: string | null; reached: boolean }[] };
   tasksToday: { id: string; title: string; status: string; priority: string; due_date: string | null; assignee: string | null }[];
@@ -84,8 +84,10 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
   const stockRows = (products.data ?? []).map(p => {
     const inv = invBy.get(p.id); const s = s30.get(p.id);
     const input = { onHand: Number(inv?.on_hand ?? 0), reserved: Number(inv?.reserved ?? 0), unitsPerDay: Number(s?.units_per_day ?? 0), safetyStock: Number(inv?.safety_stock ?? 0), reorderPoint: Number(inv?.reorder_point ?? 0) };
-    return { id: p.id, name: localizedField(p, 'name', locale), sku: p.sku, isHero: p.is_hero, ...input, weeks: weeksOfSupply(input), stock: stockStatus(input), revenue30d: Number(s?.revenue_30d ?? 0), unitCost: Number(inv?.unit_cost ?? p.cost ?? 0), incoming: Number(inv?.incoming ?? 0), eta: inv?.incoming_eta as string | null };
+    return { id: p.id, name: localizedField(p, 'name', locale), sku: p.sku, isHero: p.is_hero, ...input, weeks: weeksOfSupply(input), stock: stockStatus(input), revenue30d: Number(s?.revenue_30d ?? 0), unitCost: firstKnownCost(inv?.unit_cost, p.cost), incoming: Number(inv?.incoming ?? 0), eta: inv?.incoming_eta as string | null };
   });
+
+  const stockValue = inventoryValuation(stockRows);
 
   // tasks
   const allTasks = tasks.data ?? [];
@@ -141,7 +143,8 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
       { key: 'gross_margin', value: gm, target: target('gross_margin'), previous: null, unit: 'percent' },
       { key: 'repeat_revenue', value: crm.data && prev.gross ? (Number(crm.data.repeat_revenue) / prev.gross) * 100 : null, target: target('repeat_revenue'), previous: null, unit: 'percent' },
       { key: 'cash', value: fin.data?.cash_balance != null ? Number(fin.data.cash_balance) : null, target: null, previous: null, unit: 'TWD' },
-      { key: 'inventory_value', value: inventoryValue(stockRows), target: null, previous: fin.data?.inventory_value != null ? Number(fin.data.inventory_value) : null, unit: 'TWD' },
+      { key: 'inventory_value', value: stockValue.complete ? stockValue.value : null, target: null, previous: fin.data?.inventory_value != null ? Number(fin.data.inventory_value) : null, unit: 'TWD',
+        incomplete: stockValue.complete ? undefined : { uncostedProducts: stockValue.uncostedProducts, uncostedUnits: stockValue.uncostedUnits } },
     ],
     pulse: { revenueToday: Number(today?.gross_revenue ?? 0), ordersToday: Number(today?.orders ?? 0), waiting: Number(ops.data?.orders_waiting ?? 0), csPending: (cs.data ?? []).length,
              lowStock: stockRows.filter(r => r.stock === 'critical' || r.stock === 'low').length, tasksDue: allTasks.filter(t => t.due_date === asOf).length, overdue: overdue.length,
@@ -160,6 +163,12 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
 function toDailySales(rows: { date: string | null; orders: number | null; gross_revenue: number | null; refunds: number | null; platform_fees: number | null }[] | null): DailySales[] {
   return (rows ?? []).filter((r): r is typeof r & { date: string } => r.date !== null)
     .map(r => ({ date: r.date, orders: Number(r.orders ?? 0), gross_revenue: Number(r.gross_revenue ?? 0), refunds: Number(r.refunds ?? 0), platform_fees: Number(r.platform_fees ?? 0) }));
+}
+
+/** Prefer the inventory row's unit cost, fall back to the product's, and keep `null` meaning unknown. */
+function firstKnownCost(...candidates: (number | null | undefined)[]): number | null {
+  for (const c of candidates) if (c !== null && c !== undefined && Number.isFinite(Number(c))) return Number(c);
+  return null;
 }
 
 const PRIO: Record<string, number> = { urgent: 0, high: 1, medium: 2, low: 3 };

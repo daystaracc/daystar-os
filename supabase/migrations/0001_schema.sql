@@ -320,7 +320,7 @@ create table public.products (
   status          text not null default 'active' check (status in ('draft','active','low_stock','out_of_stock','discontinued')),
   tier            text not null default 'core' check (tier in ('entry','core','premium','high_ticket')),
   price           numeric not null default 0,
-  cost            numeric not null default 0,
+  cost            numeric,                    -- NULL = unknown; never treat as 0 (see 0005)
   weight_g        numeric,
   material        text,
   specification   text,
@@ -614,7 +614,7 @@ create table public.creators (
   category        text,
   contact         text,
   status          text not null default 'prospect' check (status in ('prospect','contacted','agreed','product_sent','content_pending','published','successful','inactive')),
-  cost            numeric not null default 0,
+  cost            numeric,                    -- NULL = unknown; never treat as 0 (see 0005)
   owner_id        uuid references public.profiles(id),
   notes           text,
   created_at      timestamptz not null default now(),

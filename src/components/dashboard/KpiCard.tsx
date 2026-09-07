@@ -1,6 +1,11 @@
 import { formatTWD, formatTWDCompact, formatPercent, formatDelta, pctChange, type Locale } from '@/lib/calculations/format';
 
-type Kpi = { key: string; value: number | null; target: number | null; previous: number | null; unit: 'TWD' | 'percent' | 'count' };
+type Kpi = {
+  key: string; value: number | null; target: number | null; previous: number | null;
+  unit: 'TWD' | 'percent' | 'count';
+  /** Set when the figure cannot be computed because source data is missing. */
+  incomplete?: { uncostedProducts: number; uncostedUnits: number };
+};
 
 /**
  * KPI card: value, target, trend vs previous period, status. Context before data —
@@ -14,7 +19,10 @@ type Kpi = { key: string; value: number | null; target: number | null; previous:
  * two variants and let the breakpoint pick one — only the displayed one is in the
  * accessibility tree, since the other is `display: none`.
  */
-export function KpiCard({ kpi, locale, label, targetLabel, momLabel }: { kpi: Kpi; locale: Locale; label: string; targetLabel: string; momLabel: string }) {
+export function KpiCard({ kpi, locale, label, targetLabel, momLabel, noDataLabel, noDataDetail }: {
+  kpi: Kpi; locale: Locale; label: string; targetLabel: string; momLabel: string;
+  noDataLabel: string; noDataDetail: string;
+}) {
   /** What desktop shows: full digits, compacting only once the number gets long. */
   const wide = (v: number) =>
     kpi.unit === 'TWD' ? (v >= 1e6 ? formatTWDCompact(v, locale) : formatTWD(v, locale))
@@ -33,8 +41,13 @@ export function KpiCard({ kpi, locale, label, targetLabel, momLabel }: { kpi: Kp
       <div className="label">{label}</div>
 
       <div className="mt-2 whitespace-nowrap text-2xl font-semibold leading-tight tracking-tight tabular-nums sm:text-kpi">
-        {kpi.value === null ? <span className="text-ink-3">—</span> : <Responsive narrow={narrow(kpi.value)} wide={wide(kpi.value)} />}
+        {kpi.value !== null
+          ? <Responsive narrow={narrow(kpi.value)} wide={wide(kpi.value)} />
+          // Missing source data says so. A partial total presented as a whole one —
+          // or a 0 cost read as 100% margin — is worse than no number at all.
+          : <span className="text-base font-medium text-ink-3 sm:text-lg">{kpi.incomplete ? noDataLabel : '—'}</span>}
       </div>
+      {kpi.incomplete && <p className="mt-1 text-xs leading-snug text-ink-3">{noDataDetail}</p>}
 
       {/* Stacked on a phone so neither phrase can break mid-way; one row once there is space. */}
       <div className="mt-2 flex flex-col gap-0.5 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-2">
