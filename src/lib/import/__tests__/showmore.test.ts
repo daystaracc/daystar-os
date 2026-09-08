@@ -59,8 +59,8 @@ test('parseShowmore: groups lines, excludes abandoned orders, totals 總額', ()
 
   // one sales_daily candidate per date per channel
   assert.deepEqual(r.days, [
-    { date: '2026-08-31', channelKey: 'website', orders: 1, gross: 1149 },
-    { date: '2026-09-01', channelKey: 'website', orders: 1, gross: 569 },
+    { date: '2026-08-31', channelKey: 'website', orders: 1, gross: 1149, refunds: 0, returnedOrders: 0 },
+    { date: '2026-09-01', channelKey: 'website', orders: 1, gross: 569, refunds: 0, returnedOrders: 0 },
   ]);
 
   // product_sales_daily candidates keyed by 商品名稱
@@ -118,4 +118,25 @@ test('customer columns are declared so the importer can drop them', () => {
   const read = Object.values(COL) as string[];
   for (const c of CUSTOMER_COLUMNS) assert.ok(!read.includes(c), `${c} must not be read`);
   assert.deepEqual([...EXCLUDED_STATUSES], ['已棄單', '棄單審核中']);
+});
+
+test('parseShowmore: 已退貨 counts as an order and as a refund, never dropped', () => {
+  const r = parseShowmore([
+    HEADER,
+    row({ 訂單編號: '260501100000000001', 訂單狀態: '已完成', 商品名稱: 'A', 數量: 1, 總額: 1000, 銷售渠道: 'DAYSTAR' }),
+    row({ 訂單編號: '260501110000000002', 訂單狀態: '已退貨', 商品名稱: 'A', 數量: 1, 總額: 400, 銷售渠道: 'DAYSTAR' }),
+    row({ 訂單編號: '260501120000000003', 訂單狀態: '已棄單', 商品名稱: 'A', 數量: 1, 總額: 999, 銷售渠道: 'DAYSTAR' }),
+  ]);
+
+  // the return still happened: it is in orders and gross on its order date …
+  assert.equal(r.totals.orders, 2);
+  assert.equal(r.totals.gross, 1400);
+  // … and its value is also a refund, so net_revenue and the return rate are right
+  assert.equal(r.totals.refunds, 400);
+  assert.equal(r.totals.returnedOrders, 1);
+  assert.deepEqual(r.days, [
+    { date: '2026-05-01', channelKey: 'website', orders: 2, gross: 1400, refunds: 400, returnedOrders: 1 },
+  ]);
+  // abandoned is the only thing excluded
+  assert.deepEqual(r.orders.excluded.map(e => e.detail), ['已棄單']);
 });

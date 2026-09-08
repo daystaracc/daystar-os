@@ -15,6 +15,162 @@ Source of truth for the strategy: **《DAYSTAR — 100M PLAYBOOK》** (14 chapte
 
 ---
 
+## 0. Current state — read this first (updated 2026-09-08)
+
+Sections 1–10 are the product spec and remain the target. This section is where the
+build actually is. It is written for someone picking this up cold.
+
+**Live:** https://daystar-os.vercel.app · repo `daystaracc/daystar-os` (private) ·
+Vercel project `daystar-os`, scope `daystar3`.
+Accounts: `kaistarkai77@gmail.com` (KAi, founder) · `lucasmccollister@gmail.com`
+(Lucas, founder) · `dtyangtony@gmail.com` (Alexander, member) — password `daystar2026`.
+
+### Built and verified
+
+| Area | State |
+|---|---|
+| Auth, middleware route protection, app shell, role-based nav | done |
+| i18n EN ↔ 繁中, key parity enforced by test, `localizedField()` for `*_zh` columns | done |
+| Command Center `/overview` | done |
+| My Work `/my-work` (member home) | done |
+| Tasks `/tasks` — list · kanban (drag-drop) · calendar, full CRUD, recurrence, filters, detail panel | done |
+| Revenue, Projects, Goals, Products, Inventory, Content, Marketing, CRM, Finance, Team, Reviews, SOPs | **not built** — the sidebar links to them and they 404 |
+
+Verified end-to-end against the deployed build: login as both roles, member
+redirected to `/my-work` with no Finance/Revenue in nav **and refused by RLS at the
+database** (0 rows on another user's task); kanban drop persists; inline status
+change persists; completing a recurring task spawns exactly one next occurrence;
+EN/繁 switch flips live; no horizontal overflow at 390px or 360px in either language.
+
+`npm run test:calc` = **28 tests**. Keep it green; it is the only automated gate.
+
+### Data state — part real, part seed
+
+The database is **not** all demo data any more. Know which is which:
+
+| Table | State |
+|---|---|
+| `sales_daily` | **REAL** for channel `website`, 2026-01-01 → 2026-08-31 (243 rows, 3,787 orders, NT$3,712,089, refunds NT$183,125). Imported from Showmore. |
+| `sales_daily` (shopee) | **SEEDED/FAKE** — 30 rows, Aug 1–30, 201 orders, NT$187,930. Shopee has no export yet. |
+| `sales_daily` | **nothing** for 2026-09-01 onwards, so the Command Center shows NT$0 for September. This is expected, not a bug. |
+| `product_sales_daily` | **SEEDED/FAKE** — 206 rows. Real product attribution is blocked (below). |
+| `products` / `inventory` | **SEEDED/FAKE** — 8 products. The real catalogue is 102 products / 320 variants. |
+| `product_variants` | empty |
+| `tasks`, `content`, `business_systems`, `reviews`, `sops` | seed data, fine to keep |
+| `customers`, `crm_metrics_monthly` | empty / 1 row — repeat-customer metrics not built |
+
+Backups of anything deleted are in the session scratchpad as
+`sales_daily-backup-*.json`; if they are gone, the seed can be re-run from
+`supabase/seed.sql` for those dates.
+
+### Migrations — 0005 and 0006 are NOT applied
+
+`0001`–`0004` are applied to the live database. **`0005` and `0006` are written but
+have not been run**, and the product import cannot start until they are. Run them in
+the Supabase SQL editor, in order:
+
+- `0005_products_cost_nullable.sql` — `products.cost` is `not null default 0`, which
+  makes "cost unknown" impossible and reads as 100% margin. Makes it nullable.
+- `0006_variant_level_stock.sql` — adds `variant_id` to `inventory`,
+  `product_sales_daily` and `inventory_movements`, widens both unique constraints to
+  `UNIQUE NULLS NOT DISTINCT`, and rewrites `apply_inventory_movement()` to work per
+  variant and roll product status up across variants.
+
+Verify with: `products.cost` absent from `required` in the PostgREST OpenAPI
+document, and `inventory.variant_id` present.
+
+### Mid-flight: the Revenue import
+
+`src/lib/import/showmore.ts` is a **pure, tested parser** for Showmore's
+`訂單管理 → 匯出` order export. It reproduces the real 8-month file exactly:
+3,787 orders / NT$3,712,089 / AOV 980.2, every month matching to the dollar.
+
+Things the real files forced, all of which have tests — do not "simplify" these away:
+
+- **`訂單編號` must stay text.** It is 18 digits; as a float, adjacent order ids
+  collide. There is a test using two ids that are `===` as numbers.
+- **The order date comes from the `YYMMDD` prefix of `訂單編號`**, not `付款時間`,
+  which is empty for 貨到付款 (57 of 80 lines in the week sample). `付款時間` is the
+  fallback; an order with no derivable date is excluded with a reason, never guessed.
+- **`總額` already includes `運費`** and is net of `折扣紀錄`. It is the revenue
+  figure. Adding shipping on top overstates by ~5%.
+- **`已棄單` / `棄單審核中` are excluded.** `已退貨` is **not** — a return counts in
+  orders and gross on its order date *and* its value goes to `refunds`, so
+  `net_revenue` (generated) and the return rate are both correct.
+- Rows with no `訂單編號` are a trailing product-list block and are skipped.
+- `銷售渠道` arrives padded (`" DAYSTAR "`) → trim before mapping to `website`.
+- `成本` is 0 for most rows and means *unknown*, not free. Cost comes from `products`.
+
+**Showmore's product CSV is malformed.** Product names contain unescaped `"`
+(`"Daystar "0" Football Jersey "`, `"''DS" TRUCKER HAT"`). RFC4180 requires `""`. A
+conformant parser recovers 53 of 320 rows; SheetJS gets 296; Excel mangles it
+differently again. A **tolerant** parser is required — inside a quoted field, a `"`
+not followed by a delimiter, newline or EOF is a literal character. With that, the
+file parses to exactly 320 rows / 102 products. This parser still needs writing into
+`src/lib/import/` (a working version lives in the session scratchpad as `csv.mjs`).
+
+### Open decisions — blocking the next step
+
+1. **Product matching.** Agreed approach is: import the product master first, then
+   match order lines on **商品名稱 + 款式** (product + variant), listing anything
+   unmatched rather than inventing products. `商品編號(sku)` is empty on 314 of 320
+   rows, so it cannot be the join key; Showmore's `product_id` / `variant_id` are
+   stable and should be stored for future imports.
+2. **Variant level names need folding** to colour / size / width / length / quantity.
+   Raw values are inconsistent (顏色, 尺寸, 款式, Color, COLOR, SIZE, Size, 寬度,
+   `Colore`) and four are not attribute names at all (`Mystery Box 2.0`,
+   `TURCKER HAT`, `款式尺寸`, `項鍊`). Anything unrecognised stays a free-text label.
+3. **Seeded Shopee rows for Aug 1–30** (201 orders, NT$187,930) — still fabricated
+   alongside real website data. Awaiting a decision to clear them.
+4. **`product_sales_daily` seed rows** (206) — still fabricated; Hero Products
+   therefore still shows demo data.
+5. **Hero products are unchosen.** The seeded five are wrong. Top 10 real products are
+   only **33.6%** of revenue and nothing exceeds 7.4%, so "5–10 heroes carry the
+   brand" is currently *not true* — a real finding for the hero programme.
+   Two caveats in the ranking: `Mystery Box 2.0` is #1 at NT$274K but sold on only
+   4 days (a campaign drop, not a hero), and `DIAMOND EARRINGS 8MM E04` appears under
+   two names that are probably one product (NT$245K combined, which would make it #1).
+
+### What is next, in order
+
+1. Run migrations `0005` and `0006`.
+2. Write the tolerant CSV parser into `src/lib/import/`, with tests covering the
+   unescaped-quote recovery.
+3. Import the product master: 102 products, 320 variants, `cost` from `成本` where
+   `> 0` (115 of them) and `null` otherwise, `官網庫存` (3,538 units) as opening
+   inventory via `inventory_movements` type `count` so the audit trail starts right.
+   Generate our own SKUs. Store Showmore's `product_id` / `variant_id`.
+4. Re-run the order import to fill `product_sales_daily` at product+variant grain,
+   and produce the unmatched-name list.
+5. Build the Revenue screen: manual daily-entry drawer (date, channel, orders, gross,
+   refunds, fees, sessions), period switcher, charts, and the CSV/XLSX import wizard
+   with a preview (row counts, exclusions with reasons, totals) before any write.
+   Import **replaces** a day's row per channel; it never adds to it.
+6. Populate `customers` and `crm_metrics_monthly` from the order history — **hash the
+   phone number, never store it**. 16.2% of customers place 2+ orders and drive 31.4%
+   of orders.
+7. Then Projects, then the rest of the Playbook order in §9.
+
+### Traps that cost time in earlier sessions
+
+- A `'use server'` file may export **only async functions**. Exporting a const array
+  or a sync helper breaks the route at runtime, not at typecheck.
+- postgrest-js types the result from the **select string literal**. Building it with
+  `+` widens it to `string` and every column silently becomes `never`.
+- Passing a **function** as a prop from a Server Component to a Client Component
+  throws at runtime. Pass resolved strings, or a template the client interpolates.
+- Grid items default to `min-width: auto`; combined with `truncate`
+  (`white-space: nowrap`) this makes a track as wide as the untruncated text and
+  pushes the whole page into horizontal scroll. `min-w-0` on the grid item.
+- Vercel on a Hobby plan **refuses to build commits authored by another email**.
+  Commits must be authored `325529981+daystaracc@users.noreply.github.com`; it is set
+  repo-locally. Symptom is a deployment stuck at `UNKNOWN` with a 0 ms build.
+- Node, `gh` and `vercel` are on the machine PATH but a shell started before they were
+  installed will not see them. Prefix with
+  `C:\Program Files\nodejs`, `C:\Program Files\GitHub CLI`, `%APPDATA%\npm`.
+
+---
+
 ## 1. Requirements extracted from the 100M Playbook
 
 | Playbook system | What the OS must do | Where it lives |
@@ -238,15 +394,30 @@ No blue as an interface color. No gradients, no glassmorphism, no illustration, 
 
 Map to the spec's phases. Definition of done for every module: works end‑to‑end against Supabase, permissions verified with all three seed accounts, empty / loading / error states, both languages, desktop 1440 + iPad + mobile.
 
-| Phase | Scope | Status in this package |
+| Phase | Scope | Status (2026-09-08) |
 |---|---|---|
-| **1 Foundation** | design tokens, auth (email/password, reset, persistent sessions, logout), schema, RLS, seed, app shell (sidebar, top bar, language switch), command palette | Tokens ✔ · schema ✔ · RLS ✔ · seed ✔ · calc layer ✔ (tested) · i18n ✔ (tested) · auth + shell + middleware written (not yet run) · ⌘K palette: next |
-| **2 Core OS** | Command Center, Goals/OKR, Projects, Tasks (My Tasks, list, kanban, calendar, recurring), 100M Journey | Command Center page + data layer + components written; task actions (create / status / complete‑with‑recurrence) written · rest: next |
-| **3 Commerce** | Revenue (entry, charts), Products, Hero Products, Inventory (movements, counts, ABC, alerts) | schema + calculations ready · screens: next |
+| **1 Foundation** | design tokens, auth (email/password, reset, persistent sessions, logout), schema, RLS, seed, app shell (sidebar, top bar, language switch), command palette | **done and deployed** — tokens ✔ schema ✔ RLS ✔ seed ✔ calc layer ✔ i18n ✔ auth ✔ shell ✔ middleware ✔ · ⌘K palette: not built (the top-bar search button fires an event nothing listens to) |
+| **2 Core OS** | Command Center, Goals/OKR, Projects, Tasks (My Tasks, list, kanban, calendar, recurring), 100M Journey | Command Center **done** · My Work **done** · Tasks **done** (list/kanban/calendar, CRUD, recurrence, filters, detail panel) · Goals, Projects, 100M Journey page: not built |
+| **3 Commerce** | Revenue (entry, charts), Products, Hero Products, Inventory (movements, counts, ABC, alerts) | **in progress** — order history imported to `sales_daily` (Jan–Aug 2026, real); parser tested; product import blocked on migrations 0005/0006. Screens not built. |
 | **4 Growth** | Content OS (calendar, pipeline, library, metrics), Marketing (campaigns, paid, creators), CRM | schema + calculations ready · screens: next |
 | **5 Operations** | Operations, Finance (management P&L), Team, Reviews (WBR/MBR), SOPs | schema ready · screens: next |
-| **6 Intelligence** | Attention rules ✔, business health, notifications fan‑out (cron), global search, audit log screen | rules engine + dismissals ✔ · triggers ✔ · UI: next |
-| **7 Polish** | mobile bottom nav, animations, performance, accessibility pass, empty/error states, CSV import wizard | next |
+| **6 Intelligence** | Attention rules, business health, notifications fan‑out (cron), global search, audit log screen | rules engine ✔ (incl. the three stall rules below) · dismissals ✔ · triggers ✔ · notifications/search/audit UI: next |
+| **7 Polish** | mobile bottom nav, animations, performance, accessibility pass, empty/error states, CSV import wizard | mobile layout verified at 360/390px ✔ · empty/loading/error states on Tasks ✔ · bottom nav, ⌘K, import wizard: next |
+
+Three rules were added beyond the table in §5 after the July→August 2026 drop
+(NT$924K/928 orders → NT$495K/443; posting stopped, ads stopped, a campaign ended,
+AOV actually rose, so the entire loss was order volume):
+
+| Code | Condition | Severity |
+|---|---|---|
+| `content_output_stopped` | nothing published in 3 days, or last 7 days under 50% of the weekly target | high |
+| `ad_spend_stopped` | 3+ consecutive zero/missing ad-spend days **when the prior 14 averaged > 0** | high |
+| `orders_per_day_declining` | 7-day average orders/day ≥20% below the prior 28-day average | high, **critical at ≥30%** |
+
+`orders_per_day_declining` is the leading indicator — revenue pacing lags it by days.
+A missing `ad_spend_daily` row counts as zero (not spending and not recording look the
+same from outside). Order averages report no baseline until there is history behind
+the recent week, so a fresh install does not accuse itself of collapsing.
 
 **First usable version** (spec §67) = Phase 1 + 2 + Products/Hero/Inventory + Content calendar + Business health + Weekly review + basic Finance + Team. Build order inside Claude Code: `npm run typecheck` green → login → Overview renders seed → Tasks → Projects → Goals/Journey → Products/Inventory → Content calendar → Health → Reviews → Finance → Team.
 

@@ -44,6 +44,13 @@ export const CUSTOMER_COLUMNS = [
 /** Orders in these states never count towards revenue or order counts. */
 export const EXCLUDED_STATUSES = ['已棄單', '棄單審核中'] as const;
 
+/**
+ * A returned order still happened: it counts in orders and gross on its order date,
+ * and its value is also recorded as a refund, so net_revenue is right and the return
+ * rate stays visible. Dropping it would quietly understate both demand and returns.
+ */
+export const RETURNED_STATUS = '已退貨';
+
 /** Showmore's 銷售渠道 values mapped onto sales_channels.key. */
 const CHANNEL_KEYS: Record<string, 'website' | 'shopee' | 'other'> = {
   DAYSTAR: 'website',
@@ -53,13 +60,13 @@ const CHANNEL_KEYS: Record<string, 'website' | 'shopee' | 'other'> = {
 export interface OrderLine { productName: string; variant: string | null; sku: string | null; qty: number; unitPrice: number; lineTotal: number }
 export interface ParsedOrder { id: string; date: string; status: string; channelKey: 'website' | 'shopee' | 'other'; gross: number; shipping: number; lines: OrderLine[] }
 export interface ExcludedOrder { id: string; reason: 'status' | 'no-date'; detail: string; gross: number }
-export interface DayChannelTotals { date: string; channelKey: 'website' | 'shopee' | 'other'; orders: number; gross: number }
+export interface DayChannelTotals { date: string; channelKey: 'website' | 'shopee' | 'other'; orders: number; gross: number; refunds: number; returnedOrders: number }
 export interface ProductDayTotals { date: string; productName: string; units: number; revenue: number }
 
 export interface ShowmoreParseResult {
   rows: { total: number; skippedNoOrderNumber: number };
   orders: { parsed: number; included: number; excluded: ExcludedOrder[] };
-  totals: { orders: number; gross: number; aov: number | null };
+  totals: { orders: number; gross: number; refunds: number; returnedOrders: number; aov: number | null };
   dateRange: { from: string; to: string } | null;
   days: DayChannelTotals[];
   products: ProductDayTotals[];
@@ -169,9 +176,10 @@ export function parseShowmore(rows: unknown[][]): ShowmoreParseResult {
   const products = new Map<string, ProductDayTotals>();
   for (const o of included) {
     const dk = `${o.date}|${o.channelKey}`;
-    const day = days.get(dk) ?? { date: o.date, channelKey: o.channelKey, orders: 0, gross: 0 };
+    const day = days.get(dk) ?? { date: o.date, channelKey: o.channelKey, orders: 0, gross: 0, refunds: 0, returnedOrders: 0 };
     day.orders += 1;
     day.gross += o.gross;
+    if (o.status === RETURNED_STATUS) { day.refunds += o.gross; day.returnedOrders += 1; }
     days.set(dk, day);
 
     for (const l of o.lines) {
@@ -186,13 +194,15 @@ export function parseShowmore(rows: unknown[][]): ShowmoreParseResult {
 
   const dates = included.map(o => o.date).sort();
   const gross = included.reduce((a, o) => a + o.gross, 0);
+  const returned = included.filter(o => o.status === RETURNED_STATUS);
+  const refunds = returned.reduce((a, o) => a + o.gross, 0);
   const channels = [...new Set([...byOrder.values()].map(o => o.channelKey))];
   if (channels.includes('other')) warnings.push('Some rows have a 銷售渠道 that does not map to a known channel; they are recorded against "Other".');
 
   return {
     rows: { total: body.length, skippedNoOrderNumber: skipped },
     orders: { parsed: byOrder.size, included: included.length, excluded },
-    totals: { orders: included.length, gross, aov: aov(gross, included.length) },
+    totals: { orders: included.length, gross, refunds, returnedOrders: returned.length, aov: aov(gross, included.length) },
     dateRange: dates.length ? { from: dates[0], to: dates[dates.length - 1] } : null,
     days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date) || a.channelKey.localeCompare(b.channelKey)),
     products: [...products.values()].sort((a, b) => a.date.localeCompare(b.date) || a.productName.localeCompare(b.productName)),
@@ -205,7 +215,7 @@ function empty(warnings: string[]): ShowmoreParseResult {
   return {
     rows: { total: 0, skippedNoOrderNumber: 0 },
     orders: { parsed: 0, included: 0, excluded: [] },
-    totals: { orders: 0, gross: 0, aov: null },
+    totals: { orders: 0, gross: 0, refunds: 0, returnedOrders: 0, aov: null },
     dateRange: null, days: [], products: [], channels: [], warnings,
   };
 }
