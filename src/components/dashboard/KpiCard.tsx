@@ -1,10 +1,12 @@
 import { formatTWD, formatTWDCompact, formatPercent, formatDelta, pctChange, type Locale } from '@/lib/calculations/format';
 
+import type { KpiIncomplete } from '@/lib/data/commandCenter';
+
 type Kpi = {
   key: string; value: number | null; target: number | null; previous: number | null;
   unit: 'TWD' | 'percent' | 'count';
   /** Set when the figure cannot be computed because source data is missing. */
-  incomplete?: { uncostedProducts: number; uncostedUnits: number };
+  incomplete?: KpiIncomplete;
 };
 
 /**

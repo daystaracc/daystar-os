@@ -22,6 +22,36 @@ export function conversionRate(orders: number, sessions: number | null | undefin
   return sessions && sessions > 0 ? (orders / sessions) * 100 : null;
 }
 
+export interface PeriodConversion {
+  /** Percent, or null when no day in the period has session data. */
+  cvr: number | null;
+  daysWithSessions: number;
+  daysWithOrders: number;
+}
+
+/**
+ * Conversion rate over a period, counting orders **only from the days that also have
+ * sessions**.
+ *
+ * Google Analytics was installed on the DAYSTAR site on 2026-09-08, so every date
+ * before that has orders and no sessions, and the changeover month has both kinds of
+ * day. Dividing all of a month's orders by only the covered days' sessions would
+ * overstate CVR; dividing by a total that treats a missing day as zero sessions
+ * understates it. Restricting both sides to the same days is the only figure that
+ * means anything, and `daysWithSessions` vs `daysWithOrders` tells the caller how
+ * much of the period it actually covers.
+ */
+export function conversionRateOverDays(rows: DailySales[]): PeriodConversion {
+  const covered = rows.filter(r => r.sessions !== null && r.sessions !== undefined && Number(r.sessions) > 0);
+  const sessions = covered.reduce((a, r) => a + Number(r.sessions), 0);
+  const orders = covered.reduce((a, r) => a + Number(r.orders), 0);
+  return {
+    cvr: conversionRate(orders, sessions),
+    daysWithSessions: new Set(covered.map(r => r.date)).size,
+    daysWithOrders: new Set(rows.filter(r => Number(r.orders) > 0).map(r => r.date)).size,
+  };
+}
+
 export function grossMarginPct(revenue: number, cogs: number): number | null {
   return revenue > 0 ? ((revenue - cogs) / revenue) * 100 : null;
 }

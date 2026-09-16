@@ -7,7 +7,7 @@ import type { Dictionary, Locale } from '@/lib/i18n';
 import { signOut } from '@/app/(auth)/login/actions';
 
 /** Top bar: global search (⌘K), quick create, notifications, date, profile, language switch. */
-export function TopBar({ locale, labels, appLabels, user }: { locale: Locale; labels: Dictionary['topbar']; appLabels: Dictionary['app']; user: { name: string; avatarUrl?: string | null } }) {
+export function TopBar({ locale, labels, appLabels, user, unreadCount = 0 }: { locale: Locale; labels: Dictionary['topbar']; appLabels: Dictionary['app']; user: { name: string; avatarUrl?: string | null }; unreadCount?: number }) {
   const [createOpen, setCreateOpen] = useState(false);
   const today = new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-TW', { year: 'numeric', month: 'short', day: 'numeric' });
 
@@ -34,7 +34,14 @@ export function TopBar({ locale, labels, appLabels, user }: { locale: Locale; la
             </ul>
           )}
         </div>
-        <Link href="/notifications" aria-label={labels.notifications} className="btn-ghost h-8 w-8 px-0"><Bell className="h-4 w-4" /></Link>
+        <Link href="/notifications" aria-label={labels.notifications} className="btn-ghost relative h-8 w-8 px-0">
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[10px] font-semibold leading-none text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </Link>
         <span className="hidden px-2 text-xs tabular-nums text-ink-3 md:inline">{today}</span>
         <LocaleSwitch locale={locale} switchTo={appLabels.switchTo.replace('{lang}', locale === 'en' ? appLabels.chinese : appLabels.english)} />
         <form action={signOut}>

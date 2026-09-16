@@ -48,6 +48,12 @@ export function projectHealth(p: { deadline?: string | null; progressPct: number
   return 'healthy';
 }
 
+/** Roll several progress percentages up into one (an objective's KRs, or a goal's objectives). `null` — not 0 — when there's nothing to average, so "no key results yet" never reads as "0% done". */
+export function averageProgress(values: number[]): number | null {
+  if (values.length === 0) return null;
+  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+}
+
 function dayDiff(a: string, b: string): number {
   const p = (s: string) => { const [y, m, d] = s.slice(0, 10).split('-').map(Number); return Date.UTC(y, m - 1, d); };
   return Math.round((p(b) - p(a)) / 86_400_000);

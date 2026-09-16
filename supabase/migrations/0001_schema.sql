@@ -331,12 +331,15 @@ create table public.products (
   launch_date     date,
   image_url       text,
   notes           text,
+  external_source text,                       -- where an imported row came from (see 0007)
+  external_id     text,
   created_by      uuid references public.profiles(id),
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
   unique (organization_id, sku)
 );
 create index products_org_idx  on public.products (organization_id, status);
+create unique index products_external_key on public.products (organization_id, external_source, external_id) where external_id is not null;
 create index products_hero_idx on public.products (organization_id) where is_hero;
 
 create table public.product_variants (
@@ -347,9 +350,12 @@ create table public.product_variants (
   price       numeric,
   cost        numeric,
   attributes  jsonb not null default '{}'::jsonb,
+  external_source text,
+  external_id     text,
   created_at  timestamptz not null default now()
 );
 create index product_variants_product_idx on public.product_variants (product_id);
+create unique index product_variants_external_key on public.product_variants (product_id, external_source, external_id) where external_id is not null;
 
 -- ---------------------------------------------------------------------
 -- inventory (with a mandatory audit trail: on_hand only changes via movements)
@@ -358,6 +364,7 @@ create table public.inventory (
   id                uuid primary key default gen_random_uuid(),
   organization_id   uuid not null references public.organizations(id) on delete cascade,
   product_id        uuid not null references public.products(id) on delete cascade,
+  variant_id        uuid references public.product_variants(id) on delete cascade,
   on_hand           int not null default 0,
   reserved          int not null default 0,
   incoming          int not null default 0,
@@ -371,13 +378,18 @@ create table public.inventory (
   last_restocked_at date,
   last_counted_at   date,
   updated_at        timestamptz not null default now(),
-  unique (organization_id, product_id)
+  -- Stock is held at variant grain. variant_id is NULL for products sold without
+  -- variants; NULLS NOT DISTINCT keeps "one row per product" true for those, which
+  -- a plain UNIQUE would not (Postgres treats NULLs as distinct there).
+  unique nulls not distinct (organization_id, product_id, variant_id)
 );
+create index inventory_variant_idx on public.inventory (variant_id);
 
 create table public.inventory_movements (
   id              uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
   product_id      uuid not null references public.products(id) on delete cascade,
+  variant_id      uuid references public.product_variants(id) on delete cascade,
   type            text not null check (type in ('purchase','restock','sale','return','adjustment','damage','sample','gift','count')),
   quantity        int not null,           -- signed: +in / -out
   unit_cost       numeric,
@@ -392,25 +404,29 @@ create index inventory_movements_org_idx     on public.inventory_movements (orga
 create or replace function public.apply_inventory_movement()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.inventory (organization_id, product_id, on_hand)
-  values (new.organization_id, new.product_id, 0)
-  on conflict (organization_id, product_id) do nothing;
+  insert into public.inventory (organization_id, product_id, variant_id, on_hand)
+  values (new.organization_id, new.product_id, new.variant_id, 0)
+  on conflict (organization_id, product_id, variant_id) do nothing;
 
   update public.inventory
      set on_hand = on_hand + new.quantity,
          last_restocked_at = case when new.type in ('purchase','restock') and new.quantity > 0 then current_date else last_restocked_at end,
          last_counted_at   = case when new.type = 'count' then current_date else last_counted_at end,
          updated_at = now()
-   where organization_id = new.organization_id and product_id = new.product_id;
+   where organization_id = new.organization_id
+     and product_id = new.product_id
+     and variant_id is not distinct from new.variant_id;
 
+  -- Product status follows the product's total stock across all of its variants.
   update public.products p
      set status = case
            when p.status in ('draft','discontinued') then p.status
-           when i.on_hand <= 0 then 'out_of_stock'
-           when i.on_hand <= i.reorder_point then 'low_stock'
+           when tot.on_hand <= 0 then 'out_of_stock'
+           when tot.on_hand <= coalesce(tot.reorder_point, 0) then 'low_stock'
            else 'active' end
-    from public.inventory i
-   where i.product_id = p.id and p.id = new.product_id;
+    from (select product_id, sum(on_hand) as on_hand, max(reorder_point) as reorder_point
+            from public.inventory where product_id = new.product_id group by product_id) tot
+   where p.id = tot.product_id;
   return new;
 end $$;
 create trigger inventory_movements_apply after insert on public.inventory_movements
@@ -467,12 +483,15 @@ create table public.product_sales_daily (
   organization_id uuid not null references public.organizations(id) on delete cascade,
   date            date not null,
   product_id      uuid not null references public.products(id) on delete cascade,
+  variant_id      uuid references public.product_variants(id) on delete cascade,
   units           int not null default 0,
   revenue         numeric not null default 0,
   created_at      timestamptz not null default now(),
-  unique (organization_id, date, product_id)
+  -- Variants can carry different prices, so revenue is held at variant grain too.
+  unique nulls not distinct (organization_id, date, product_id, variant_id)
 );
-create index product_sales_daily_idx on public.product_sales_daily (organization_id, product_id, date);
+create index product_sales_daily_idx         on public.product_sales_daily (organization_id, product_id, date);
+create index product_sales_daily_variant_idx on public.product_sales_daily (variant_id);
 
 -- ---------------------------------------------------------------------
 -- finance (management view, not accounting)

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:calc": "tsx --test src/lib/calculations/__tests__/calculations.test.ts src/lib/i18n/__i18n.test.ts src/lib/import/__tests__/showmore.test.ts",
+    "test:calc": "tsx --test src/lib/calculations/__tests__/calculations.test.ts src/lib/i18n/__i18n.test.ts src/lib/import/__tests__/showmore.test.ts src/lib/import/__tests__/csv.test.ts src/lib/import/__tests__/showmoreProducts.test.ts src/lib/import/__tests__/productImportPlan.test.ts src/lib/import/__tests__/revenueImportPlan.test.ts src/lib/import/__tests__/customerAggregation.test.ts",
     "db:types": "node scripts/db-types.mjs"
   },
   "dependencies": {

@@ -111,3 +111,59 @@ export function weekBounds(isoDate: string): { start: string; end: string } {
   const start = new Date(t - dow * DAY), end = new Date(t + (6 - dow) * DAY);
   return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) };
 }
+
+/** Calendar-quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec) bounds. */
+export function quarterBounds(isoDate: string): { start: string; end: string } {
+  const [y, m] = isoDate.slice(0, 10).split('-').map(Number);
+  const qStartMonth = Math.floor((m - 1) / 3) * 3; // 0, 3, 6, 9
+  const last = new Date(Date.UTC(y, qStartMonth + 3, 0)).getUTCDate();
+  return { start: `${y}-${String(qStartMonth + 1).padStart(2, '0')}-01`, end: `${y}-${String(qStartMonth + 3).padStart(2, '0')}-${String(last).padStart(2, '0')}` };
+}
+
+/**
+ * The full calendar month immediately before the one `isoDate` falls in — not the
+ * MTD-style same-elapsed-slice `previousMonthToDate` gives. For a monthly review
+ * created on/after month-end, this is the month actually being reviewed: on any day
+ * in January, the previous month is December of the *prior* year, not month 0.
+ */
+export function previousMonthBounds(isoDate: string): { start: string; end: string } {
+  const [y, m] = isoDate.slice(0, 10).split('-').map(Number);
+  const prevYear = m === 1 ? y - 1 : y;
+  const prevMonth = m === 1 ? 12 : m - 1;
+  return monthBounds(`${prevYear}-${String(prevMonth).padStart(2, '0')}-01`);
+}
+
+/** Calendar-year bounds. */
+export function yearBounds(isoDate: string): { start: string; end: string } {
+  const y = isoDate.slice(0, 4);
+  return { start: `${y}-01-01`, end: `${y}-12-31` };
+}
+
+export type RevenuePeriodPreset = 'today' | '7d' | '30d' | 'month' | 'quarter' | 'year';
+
+/**
+ * Resolves a Revenue-screen period preset to [start, end] (both inclusive), clamped so
+ * `end` never runs past `asOf` — "This month" on the 5th is the 1st through the 5th,
+ * not through the 30th, so a manual-entry table never shows future empty rows as gaps.
+ */
+export function resolvePeriod(preset: RevenuePeriodPreset, asOf: string): { start: string; end: string } {
+  const today = asOf.slice(0, 10);
+  const clampEnd = (b: { start: string; end: string }) => ({ start: b.start, end: b.end > today ? today : b.end });
+  switch (preset) {
+    case 'today': return { start: today, end: today };
+    case '7d': return { start: shiftDays(today, -6), end: today };
+    case '30d': return { start: shiftDays(today, -29), end: today };
+    case 'month': return clampEnd(monthBounds(today));
+    case 'quarter': return clampEnd(quarterBounds(today));
+    case 'year': return clampEnd(yearBounds(today));
+  }
+}
+
+/**
+ * The immediately preceding period of equal length, for period-over-period deltas —
+ * 7d ending today vs the 7d immediately before it, this month vs last month-to-date.
+ */
+export function previousPeriod(period: { start: string; end: string }): { start: string; end: string } {
+  const len = daysBetween(period.start, period.end) + 1;
+  return { start: shiftDays(period.start, -len), end: shiftDays(period.end, -len) };
+}

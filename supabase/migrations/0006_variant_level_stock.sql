@@ -9,6 +9,8 @@
 -- `inventory` and `product_sales_daily` were keyed on product_id alone, so those
 -- could not hold separate stock or separate revenue.
 --
+-- Re-runnable: every statement is guarded, so applying it twice is harmless.
+--
 -- variant_id is nullable: products with no variants keep a single row with
 -- variant_id IS NULL, and existing rows are unaffected. The unique constraints
 -- are widened to include it. Postgres treats NULLs as distinct in a plain UNIQUE,
@@ -23,11 +25,13 @@ alter table public.product_sales_daily
   add column if not exists variant_id uuid references public.product_variants(id) on delete cascade;
 
 alter table public.inventory drop constraint if exists inventory_organization_id_product_id_key;
+alter table public.inventory drop constraint if exists inventory_org_product_variant_key;
 alter table public.inventory
   add constraint inventory_org_product_variant_key
   unique nulls not distinct (organization_id, product_id, variant_id);
 
 alter table public.product_sales_daily drop constraint if exists product_sales_daily_organization_id_date_product_id_key;
+alter table public.product_sales_daily drop constraint if exists product_sales_daily_org_date_product_variant_key;
 alter table public.product_sales_daily
   add constraint product_sales_daily_org_date_product_variant_key
   unique nulls not distinct (organization_id, date, product_id, variant_id);

@@ -2,24 +2,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { LayoutDashboard, Target, FolderKanban, CheckSquare, TrendingUp, Package, Clapperboard, Megaphone, Users, Boxes, Truck, Wallet, UserRound, ClipboardList, BookOpen, Settings, PanelLeftClose, PanelLeftOpen, Briefcase } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { NAV_GROUPS as GROUPS } from '@/lib/nav';
 import type { Role } from '@/lib/permissions';
 import type { Dictionary } from '@/lib/i18n';
-
-/** Only the nav keys whose value is a label — excludes the nested `groups` object. */
-type NavLabelKey = { [K in keyof Dictionary['nav']]: Dictionary['nav'][K] extends string ? K : never }[keyof Dictionary['nav']];
-
-type Item = { key: NavLabelKey; href: string; icon: React.ComponentType<{ className?: string }>; roles?: Role[] };
-type Group = { key: keyof Dictionary['nav']['groups']; items: Item[] };
-
-const GROUPS: Group[] = [
-  { key: 'command', items: [{ key: 'overview', href: '/overview', icon: LayoutDashboard, roles: ['founder', 'manager'] }, { key: 'myWork', href: '/my-work', icon: Briefcase }] },
-  { key: 'plan', items: [{ key: 'goals', href: '/goals', icon: Target }, { key: 'projects', href: '/projects', icon: FolderKanban }, { key: 'tasks', href: '/tasks', icon: CheckSquare }] },
-  { key: 'grow', items: [{ key: 'revenue', href: '/revenue', icon: TrendingUp, roles: ['founder', 'manager'] }, { key: 'products', href: '/products', icon: Package }, { key: 'content', href: '/content', icon: Clapperboard }, { key: 'marketing', href: '/marketing', icon: Megaphone, roles: ['founder', 'manager'] }, { key: 'crm', href: '/crm', icon: Users, roles: ['founder'] }] },
-  { key: 'operate', items: [{ key: 'inventory', href: '/inventory', icon: Boxes }, { key: 'operations', href: '/operations', icon: Truck }, { key: 'finance', href: '/finance', icon: Wallet, roles: ['founder'] }] },
-  { key: 'company', items: [{ key: 'team', href: '/team', icon: UserRound }, { key: 'reviews', href: '/reviews', icon: ClipboardList, roles: ['founder', 'manager'] }, { key: 'sops', href: '/sops', icon: BookOpen }] },
-  { key: 'system', items: [{ key: 'settings', href: '/settings', icon: Settings, roles: ['founder'] }] },
-];
 
 export function Sidebar({ role, nav }: { role: Role; nav: Dictionary['nav'] }) {
   const pathname = usePathname();

@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computePacing, monthBounds, weekBounds, previousMonthToDate } from '../pacing';
+import { computePacing, monthBounds, weekBounds, previousMonthToDate, previousMonthBounds, quarterBounds, yearBounds, resolvePeriod, previousPeriod } from '../pacing';
 import { formatTWD, formatTWDCompact, formatDelta, pctChange } from '../format';
-import { aov, contributionMargin, adMetrics, conversionRate } from '../finance';
+import { aov, contributionMargin, adMetrics, conversionRate, conversionRateOverDays } from '../finance';
 import { weeksOfSupply, stockStatus, abcClassify, reorderSuggestion, sellThroughPct, inventoryValuation, productMarginPct } from '../inventory';
-import { keyResultProgress, keyResultStatus, projectHealth } from '../goals';
+import { keyResultProgress, keyResultStatus, projectHealth, averageProgress } from '../goals';
 import { healthScore, companyStatus } from '../health';
 import { evaluateRules, executiveSummary, type RulesSnapshot } from '../rules';
 
@@ -41,6 +41,31 @@ test('period helpers', () => {
   assert.deepEqual(weekBounds('2026-09-05'), { start: '2026-08-31', end: '2026-09-06' }); // Saturday → Mon–Sun
 });
 
+test('quarterBounds / yearBounds', () => {
+  assert.deepEqual(quarterBounds('2026-02-14'), { start: '2026-01-01', end: '2026-03-31' });
+  assert.deepEqual(quarterBounds('2026-09-05'), { start: '2026-07-01', end: '2026-09-30' }); // Q3
+  assert.deepEqual(quarterBounds('2026-12-31'), { start: '2026-10-01', end: '2026-12-31' }); // Q4
+  assert.deepEqual(yearBounds('2026-09-05'), { start: '2026-01-01', end: '2026-12-31' });
+});
+
+test('resolvePeriod: Revenue screen presets, clamped so a period never runs past asOf', () => {
+  assert.deepEqual(resolvePeriod('today', '2026-09-05'), { start: '2026-09-05', end: '2026-09-05' });
+  assert.deepEqual(resolvePeriod('7d', '2026-09-05'), { start: '2026-08-30', end: '2026-09-05' });
+  assert.deepEqual(resolvePeriod('30d', '2026-09-05'), { start: '2026-08-07', end: '2026-09-05' });
+  // "This month" on the 5th is the 1st–5th, not through the 30th — no future empty rows.
+  assert.deepEqual(resolvePeriod('month', '2026-09-05'), { start: '2026-09-01', end: '2026-09-05' });
+  assert.deepEqual(resolvePeriod('quarter', '2026-09-05'), { start: '2026-07-01', end: '2026-09-05' });
+  assert.deepEqual(resolvePeriod('year', '2026-09-05'), { start: '2026-01-01', end: '2026-09-05' });
+  // A period comfortably in the past is not clamped at all.
+  assert.deepEqual(resolvePeriod('month', '2026-09-30'), { start: '2026-09-01', end: '2026-09-30' });
+});
+
+test('previousPeriod: the immediately preceding period of equal length', () => {
+  assert.deepEqual(previousPeriod({ start: '2026-08-30', end: '2026-09-05' }), { start: '2026-08-23', end: '2026-08-29' }); // 7d
+  assert.deepEqual(previousPeriod({ start: '2026-09-01', end: '2026-09-05' }), { start: '2026-08-27', end: '2026-08-31' }); // 5d month-to-date
+  assert.deepEqual(previousPeriod({ start: '2026-09-05', end: '2026-09-05' }), { start: '2026-09-04', end: '2026-09-04' }); // 1d
+});
+
 test('previousMonthToDate: MoM compares the same elapsed days, not a full month', () => {
   // The seed baseline: on Sep 5 the comparison window is Aug 1–5, not all of August.
   assert.deepEqual(previousMonthToDate('2026-09-05'), { start: '2026-08-01', end: '2026-08-05' });
@@ -63,6 +88,15 @@ test('previousMonthToDate: MoM compares the same elapsed days, not a full month'
   assert.equal(formatDelta(pctChange(septToDate, augFullMonth)), '↓ 85.5%');
 });
 
+test('previousMonthBounds: the full calendar month before, not a same-elapsed-days slice', () => {
+  assert.deepEqual(previousMonthBounds('2026-09-05'), { start: '2026-08-01', end: '2026-08-31' });
+  assert.deepEqual(previousMonthBounds('2026-09-30'), { start: '2026-08-01', end: '2026-08-31' });
+  // Year boundary: any day in January → December of the *prior* year.
+  assert.deepEqual(previousMonthBounds('2027-01-12'), { start: '2026-12-01', end: '2026-12-31' });
+  // Leap year is handled by the underlying monthBounds, not hardcoded here.
+  assert.deepEqual(previousMonthBounds('2028-03-15'), { start: '2028-02-01', end: '2028-02-29' });
+});
+
 test('formatting', () => {
   assert.equal(formatTWD(742400, 'en'), 'NT$742,400');
   assert.equal(formatTWDCompact(742400, 'en'), 'NT$742.4K');
@@ -72,6 +106,33 @@ test('formatting', () => {
   assert.equal(formatDelta(pctChange(1090, 1051)), '↑ 3.7%');
   assert.equal(formatDelta(pctChange(1000, 1080)), '↓ 7.4%');
   assert.equal(formatDelta(null), '—');
+});
+
+/**
+ * Google Analytics went live on the DAYSTAR site on 2026-09-08. Every date before it
+ * has orders and no sessions, so CVR must stay unknown for those — a 0% would read as
+ * a catastrophic conversion rate and would fire cvr_below_target every single day.
+ */
+test('finance: CVR is null without sessions, and never mixes covered and uncovered days', () => {
+  const day = (date: string, orders: number, sessions: number | null) =>
+    ({ date, orders, gross_revenue: orders * 1000, sessions });
+
+  // Before GA: orders, no sessions anywhere.
+  const before = conversionRateOverDays([day('2026-08-01', 20, null), day('2026-08-02', 25, null)]);
+  assert.equal(before.cvr, null);
+  assert.equal(before.daysWithSessions, 0);
+  assert.equal(before.daysWithOrders, 2);
+
+  // A zero-session row is "not measured", not "nobody visited".
+  assert.equal(conversionRateOverDays([day('2026-09-01', 20, 0)]).cvr, null);
+
+  // The changeover month: only the covered day counts on BOTH sides of the division.
+  // 13 orders / 1000 sessions = 1.3%. Counting all 33 orders would give a fake 3.3%,
+  // and treating the uncovered day as 0 sessions would give the same wrong answer.
+  const mixed = conversionRateOverDays([day('2026-09-07', 20, null), day('2026-09-08', 13, 1000)]);
+  assert.equal(Number(mixed.cvr!.toFixed(1)), 1.3);
+  assert.equal(mixed.daysWithSessions, 1);
+  assert.equal(mixed.daysWithOrders, 2);
 });
 
 test('finance: AOV, CVR, contribution margin (Playbook formula), ad metrics', () => {
@@ -114,6 +175,13 @@ test('goals: key result progress / status and project health', () => {
   assert.equal(projectHealth({ deadline: '2026-10-31', progressPct: 30 }, '2026-09-05'), 'healthy');
 });
 
+test('goals: averageProgress rolls up KRs into an objective and objectives into a goal', () => {
+  assert.equal(averageProgress([]), null); // no key results yet is "no data", not 0%
+  assert.equal(averageProgress([100]), 100);
+  assert.equal(averageProgress([0, 50, 100]), 50);
+  assert.equal(averageProgress([34, 34.6]), 34); // rounds the mean, not each input
+});
+
 test('health: score and company status', () => {
   const systems = [3,2,2,2,2,1,2,2,2,1,2].map(score => ({ score }));
   assert.deepEqual(healthScore(systems), { total: 21, max: 55, pct: (21 / 55) * 100 });
@@ -122,8 +190,8 @@ test('health: score and company status', () => {
   assert.equal(companyStatus({ revenuePace: 'on_pace', criticalAlerts: 0, highAlerts: 1, krOffTrack: 0, krAtRisk: 1 }), 'on_track');
 });
 
-test('rules: the seed snapshot surfaces the right problems in the right order', () => {
-  const snapshot: RulesSnapshot = {
+function seedSnapshot(): RulesSnapshot {
+  return {
     asOf: '2026-09-05',
     revenue: computePacing({ target: 1_000_000, actual: 103_520, periodStart: '2026-09-01', periodEnd: '2026-09-30', asOf: '2026-09-05' }),
     aov: { current: 1005, previous: 1023, target: 1300 },
@@ -148,6 +216,10 @@ test('rules: the seed snapshot surfaces the right problems in the right order', 
     systems: [{ id: 's1', key: 'crm', score: 1, nextAction: 'Run 3 flows' }, { id: 's2', key: 'team', score: 1, nextAction: 'First hire' }],
     dismissals: [{ rule_code: 'system_critical', entity_id: 's2', until_date: null }],
   };
+}
+
+test('rules: the seed snapshot surfaces the right problems in the right order', () => {
+  const snapshot = seedSnapshot();
   const alerts = evaluateRules(snapshot);
   const codes = alerts.map(a => a.code);
   // ranked: critical → high → medium → low; revenue 22% behind pace leads
@@ -285,4 +357,14 @@ test('rules: the real August 2026 collapse would have surfaced within days', () 
   assert.equal(alerts[0].code, 'orders_per_day_declining');
   assert.equal(alerts[0].severity, 'critical');
   assert.equal(alerts[0].params.pct, 52);
+});
+
+test('rules: an unknown CVR is silent, not a 0% failure', () => {
+  // Before Google Analytics was installed there are no sessions at all. The rule must
+  // stay quiet rather than report "CVR 0%, below the 2% target" every day.
+  const alerts = evaluateRules({ ...seedSnapshot(), cvr: { current: null, target: 2 } });
+  assert.equal(alerts.filter(a => a.code === 'cvr_below_target').length, 0);
+  // A real measurement below target still fires.
+  const firing = evaluateRules({ ...seedSnapshot(), cvr: { current: 1.3, target: 2 } });
+  assert.equal(firing.filter(a => a.code === 'cvr_below_target').length, 1);
 });

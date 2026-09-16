@@ -1,13 +1,22 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { computePacing, monthBounds, weekBounds, daysBetween, previousMonthToDate, shiftDays, type Pacing } from '@/lib/calculations/pacing';
-import { sumRevenue, aov, conversionRate, grossMarginPct, type DailySales } from '@/lib/calculations/finance';
+import { sumRevenue, aov, conversionRateOverDays, grossMarginPct, type DailySales } from '@/lib/calculations/finance';
 import { weeksOfSupply, stockStatus, inventoryValuation, type StockStatus } from '@/lib/calculations/inventory';
 import { projectHealth, type ProjectHealth } from '@/lib/calculations/goals';
 import { healthScore, companyStatus, type CompanyStatus } from '@/lib/calculations/health';
 import { evaluateRules, executiveSummary, type AttentionItem, type RulesSnapshot } from '@/lib/calculations/rules';
 import { pctChange } from '@/lib/calculations/format';
 import { localizedField, type Locale } from '@/lib/i18n';
+
+/**
+ * Why a KPI has no number. A blank with a reason is honest; a 0 is a lie that looks
+ * like a measurement. `no_sessions` exists because Google Analytics was only installed
+ * on 2026-09-08, so CVR is genuinely unknowable before then.
+ */
+export type KpiIncomplete =
+  | { reason: 'no_cost'; uncostedProducts: number; uncostedUnits: number }
+  | { reason: 'no_sessions' };
 
 /** Everything the Command Center renders, assembled server-side from Supabase (RLS applies) and the calculation layer. */
 export interface CommandCenterData {
@@ -16,7 +25,7 @@ export interface CommandCenterData {
   summary: ReturnType<typeof executiveSummary>;
   revenue: Pacing & { month: string; previousMonthRevenue: number };
   attention: AttentionItem[];
-  kpis: { key: string; value: number | null; target: number | null; previous: number | null; unit: 'TWD' | 'percent' | 'count'; incomplete?: { uncostedProducts: number; uncostedUnits: number } }[];
+  kpis: { key: string; value: number | null; target: number | null; previous: number | null; unit: 'TWD' | 'percent' | 'count'; incomplete?: KpiIncomplete }[];
   pulse: { revenueToday: number; ordersToday: number; waiting: number; csPending: number; lowStock: number; tasksDue: number; overdue: number; publishing: number };
   journey: { currentMonthlyRunRate: number; annualRunRate: number; stages: { label: string; monthly: number; targetDate: string | null; reached: boolean }[] };
   tasksToday: { id: string; title: string; status: string; priority: string; due_date: string | null; assignee: string | null }[];
@@ -74,12 +83,11 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
   const monthlyTarget = target('monthly_revenue') ?? 0;
   const pacing = computePacing({ target: monthlyTarget, actual: cur.gross, periodStart: m.start, periodEnd: m.end, asOf });
 
-  const sumSessions = (rows: { sessions: number | null }[]) => rows.reduce((a, r) => a + Number(r.sessions ?? 0), 0) || null;
-  const sessions = sumSessions(salesM.data ?? []);
-  const sessionsPrevMtd = sumSessions((salesPrev.data ?? []).filter(r => r.date !== null && r.date <= pmtd.end));
   const aovNow = aov(cur.gross, cur.orders), aovPrev = aov(prevMtd.gross, prevMtd.orders);
-  const cvrNow = conversionRate(cur.orders, sessions);
-  const cvrPrev = conversionRate(prevMtd.orders, sessionsPrevMtd);
+  // Orders and sessions are counted over the same days — see conversionRateOverDays.
+  const cvrThis = conversionRateOverDays(toDailySales(salesM.data));
+  const cvrNow = cvrThis.cvr;
+  const cvrPrev = conversionRateOverDays(prevMtdRows).cvr;
   const gm = fin.data ? grossMarginPct(Number(fin.data.revenue), Number(fin.data.cogs)) : null;
 
   // products / inventory
@@ -150,12 +158,13 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
       { key: 'revenue', value: cur.gross, target: monthlyTarget || null, previous: prevMtd.gross, unit: 'TWD' },
       { key: 'orders', value: cur.orders, target: target('daily_orders') ? target('daily_orders')! * pacing.totalDays : null, previous: prevMtd.orders, unit: 'count' },
       { key: 'aov', value: aovNow, target: target('aov'), previous: aovPrev, unit: 'TWD' },
-      { key: 'cvr', value: cvrNow, target: target('cvr'), previous: cvrPrev, unit: 'percent' },
+      { key: 'cvr', value: cvrNow, target: target('cvr'), previous: cvrPrev, unit: 'percent',
+        incomplete: cvrNow === null ? { reason: 'no_sessions' } : undefined },
       { key: 'gross_margin', value: gm, target: target('gross_margin'), previous: null, unit: 'percent' },
       { key: 'repeat_revenue', value: crm.data && prev.gross ? (Number(crm.data.repeat_revenue) / prev.gross) * 100 : null, target: target('repeat_revenue'), previous: null, unit: 'percent' },
       { key: 'cash', value: fin.data?.cash_balance != null ? Number(fin.data.cash_balance) : null, target: null, previous: null, unit: 'TWD' },
       { key: 'inventory_value', value: stockValue.complete ? stockValue.value : null, target: null, previous: fin.data?.inventory_value != null ? Number(fin.data.inventory_value) : null, unit: 'TWD',
-        incomplete: stockValue.complete ? undefined : { uncostedProducts: stockValue.uncostedProducts, uncostedUnits: stockValue.uncostedUnits } },
+        incomplete: stockValue.complete ? undefined : { reason: 'no_cost', uncostedProducts: stockValue.uncostedProducts, uncostedUnits: stockValue.uncostedUnits } },
     ],
     pulse: { revenueToday: Number(today?.gross_revenue ?? 0), ordersToday: Number(today?.orders ?? 0), waiting: Number(ops.data?.orders_waiting ?? 0), csPending: (cs.data ?? []).length,
              lowStock: stockRows.filter(r => r.stock === 'critical' || r.stock === 'low').length, tasksDue: allTasks.filter(t => t.due_date === asOf).length, overdue: overdue.length,

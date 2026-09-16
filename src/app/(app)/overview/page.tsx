@@ -50,7 +50,11 @@ export default async function OverviewPage() {
       <Section title={t('cc.kpis')}>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {data.kpis.map(k => <KpiCard key={k.key} kpi={k} locale={locale} label={t(`kpi.${k.key}` as never)} targetLabel={t('common.target')} momLabel={t('kpi.mom')}
-            noDataLabel={t('kpi.noCostData')} noDataDetail={k.incomplete ? t('kpi.noCostDetail', { products: k.incomplete.uncostedProducts, units: k.incomplete.uncostedUnits }) : ''} />)}
+            noDataLabel={k.incomplete?.reason === 'no_sessions' ? t('kpi.noSessionData') : t('kpi.noCostData')}
+            noDataDetail={
+              k.incomplete?.reason === 'no_sessions' ? t('kpi.noSessionDetail')
+                : k.incomplete ? t('kpi.noCostDetail', { products: k.incomplete.uncostedProducts, units: k.incomplete.uncostedUnits })
+                  : ''} />)}
         </div>
       </Section>
 

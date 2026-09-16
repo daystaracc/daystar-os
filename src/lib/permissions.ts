@@ -11,6 +11,35 @@ export const can = {
   recordInventoryMovement: (_r: Role) => true,
   createTask: (_r: Role) => true,
   scoreSystems: (r: Role) => r === 'founder' || r === 'manager',
+  // `reviews_select` RLS (generic loop) actually grants every active member read
+  // access to the `reviews` table, and `review_metrics_all` requires manager-or-above
+  // for every operation including select — but the spec's permission matrix (§03)
+  // shows Reviews as founder/manager only with no member row at all, and the sidebar
+  // nav already gates `/reviews` the same way. This screen follows the spec/nav
+  // intent rather than the more permissive `reviews` RLS, same kind of deliberate
+  // choice as Revenue's `viewRevenue` gate — flagged here rather than silently
+  // exposing a partial page (reviews with no visible metrics) to members.
+  viewReviews: (r: Role) => r === 'founder' || r === 'manager',
+  // Same reasoning as `viewReviews` above: `campaigns_select`/`creators_select` (both
+  // in the generic loop) grant every active member read access, but `ad_spend_daily`
+  // requires manager-or-above for every operation including select, and
+  // `campaign_metrics`/`creator_content` are readable only through their manager+
+  // parent — so a member could open this screen and see campaign/creator names with
+  // no spend or performance data at all. The spec's permission matrix (§03) shows
+  // Marketing as founder/manager only with no member row, matching that.
+  viewMarketing: (r: Role) => r === 'founder' || r === 'manager',
+  // `customers_all` RLS is founder-only for every operation including select — the
+  // strictest table this session has built against — and the spec's own
+  // permission matrix (§03) shows CRM as founder-only too (no manager or member
+  // row at all), even though `crm_flows`/`crm_metrics_monthly` are in the more
+  // permissive generic loop (select = any member). One notch stricter than
+  // `viewReviews`/`viewMarketing` for the same underlying reason: don't show a
+  // partial screen to a role that can't see the data the screen is about.
+  viewCRM: (r: Role) => r === 'founder',
+  // Matches the sidebar nav (`lib/nav.ts`'s `settings` item is `roles: ['founder']`)
+  // and `organizations_update` RLS (`public.is_founder(id)`, migration 0002) — same
+  // founder-only shape as `viewFinance`/`viewCRM`.
+  viewSettings: (r: Role) => r === 'founder',
 };
 
 /** Navigation visible per role. Members land on My Work. */
@@ -29,4 +58,15 @@ export function canEditTask(task: { owner_id: string | null; assignee_id: string
 /** `tasks_delete`: managers and above, or whoever created it. */
 export function canDeleteTask(task: { created_by: string | null }, role: Role, userId: string): boolean {
   return role === 'founder' || role === 'manager' || task.created_by === userId;
+}
+
+/**
+ * Mirrors the `content_update` RLS policy: managers and founders edit any content
+ * piece; everyone else edits only the ones they own or created. Unlike tasks,
+ * `content_delete` has no such carve-out — deleting is manager-or-above only,
+ * checked inline where needed (`role === 'founder' || role === 'manager'`).
+ */
+export function canEditContent(content: { owner_id: string | null; created_by: string | null }, role: Role, userId: string): boolean {
+  if (role === 'founder' || role === 'manager') return true;
+  return content.owner_id === userId || content.created_by === userId;
 }
