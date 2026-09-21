@@ -35,14 +35,14 @@ export default async function RevenueImportPage() {
       </header>
 
       <ShowmoreOrderSyncPanel labels={{
-        title: t('revenue.import.sync.title'), subtitle: t('revenue.import.sync.subtitle'),
-        since: t('revenue.import.sync.since'), until: t('revenue.import.sync.until'),
-        run: t('revenue.import.sync.run'), running: t('revenue.import.sync.running'),
-        resultTitle: t('revenue.import.sync.resultTitle'),
-        ordersIncluded: t('revenue.import.sync.ordersIncluded'), ordersExcluded: t('revenue.import.sync.ordersExcluded'),
-        daysWritten: t('revenue.import.sync.daysWritten'), productsWritten: t('revenue.import.sync.productsWritten'),
-        unmatched: t('revenue.import.sync.unmatched'), unmatchedNote: t('revenue.import.sync.unmatchedNote'),
-        failed: t('revenue.import.sync.failed'),
+        title: t('revenue.sync.title'), subtitle: t('revenue.sync.subtitle'),
+        since: t('revenue.sync.since'), until: t('revenue.sync.until'),
+        run: t('revenue.sync.run'), running: t('revenue.sync.running'),
+        resultTitle: t('revenue.sync.resultTitle'),
+        ordersIncluded: t('revenue.sync.ordersIncluded'), ordersExcluded: t('revenue.sync.ordersExcluded'),
+        daysWritten: t('revenue.sync.daysWritten'), productsWritten: t('revenue.sync.productsWritten'),
+        unmatched: t('revenue.sync.unmatched'), unmatchedNote: t('revenue.sync.unmatchedNote'),
+        failed: t('revenue.sync.failed'),
       }} />
 
       <RevenueImportWizard locale={locale} labels={{
