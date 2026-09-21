@@ -1,6 +1,6 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { Database, Json } from '@/types/database';
 import { syncOrders, type ShowmoreApiOrder, type CatalogueEntry, type OrderSyncResult } from './showmoreOrders';
 
 /**
@@ -95,7 +95,9 @@ export async function runShowmoreOrderSync(sb: Client, orgId: string, orders: Sh
       entity_type: 'showmore_order_sync',
       entity_id: null,
       summary: `Showmore sync: ${result.unmatched.length} order item(s) could not be matched to a product (${dates.join(', ')}) — revenue totals are still correct, only per-product attribution is affected.`,
-      diff: { unmatched: result.unmatched },
+      // UnmatchedItem is an interface (no implicit index signature), so it doesn't
+      // structurally satisfy Json even though every field is a plain string/number/null.
+      diff: { unmatched: result.unmatched } as unknown as Json,
     });
     // Logging failure shouldn't fail the sync itself — the revenue/product writes above already succeeded.
     if (error) console.error('showmore sync: failed to log unmatched items', error.message);
