@@ -117,3 +117,31 @@ test('plan: attributes are stored under their folded key, free text under the ra
   assert.deepEqual(plan.variants.create[0].attributes, { color: 'GOLD 金', 'Mystery Box 2.0': '8' });
   assert.equal(plan.variants.create[0].name, 'GOLD 金 / 8');
 });
+
+test('plan: Showmore\'s own SKU is carried onto the variant, separate from our generated one', () => {
+  const plan = planProductImport([
+    product('product-A', 'EARRINGS', [
+      variant({ showmoreVariantId: 'v1', sku: 'SM-1234' }),
+      variant({ showmoreVariantId: 'v2', sku: null }),
+    ]),
+  ], nothing);
+  assert.equal(plan.variants.create[0].showmoreSku, 'SM-1234');
+  assert.notEqual(plan.variants.create[0].showmoreSku, plan.variants.create[0].sku);
+  // Blank on Showmore stays null, never invented.
+  assert.equal(plan.variants.create[1].showmoreSku, null);
+});
+
+test('plan: a re-import refreshes Showmore\'s SKU, same as price/cost', () => {
+  const existing: ExistingState = {
+    products: [{ id: 'p', externalId: 'product-A', sku: 'DS-0001' }],
+    variants: [{ id: 'v', productExternalId: 'product-A', externalId: 'v1', sku: 'DS-0001-01' }],
+    stock: [],
+  };
+  const plan = planProductImport(
+    [product('product-A', 'EARRINGS', [variant({ showmoreVariantId: 'v1', sku: 'SM-NEW' })])],
+    existing,
+  );
+  assert.equal(plan.variants.update[0].showmoreSku, 'SM-NEW');
+  // Our own SKU is untouched — it's stable once generated.
+  assert.equal(plan.variants.update[0].sku, 'DS-0001-01');
+});

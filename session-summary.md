@@ -4,6 +4,74 @@ A plain-language rundown of this session's work, updated after the "keep buildin
 while I'm away" run. Everything below is already saved to your `daystar-os` folder
 on your computer.
 
+## 2026-09-21, even later: automatic order sync from Showmore is built (not deployed yet)
+
+You got Showmore's real API docs and an API key, added it to Vercel yourself, and
+said to build it. It's built and all 86 automated tests pass, but it hasn't gone
+live yet — three things need to happen first, in order:
+
+1. **I need to run two small database migrations** (0010, 0011) against your real
+   Supabase project — I'll walk you through this, or do it if you give me the
+   go-ahead to run SQL there directly.
+2. **You need to add one more Vercel environment variable**: `SUPABASE_SERVICE_ROLE_KEY`.
+   Find it in your Supabase project → Settings → API → the `service_role` key
+   (different from the `anon` key already on Vercel). This is needed because the
+   webhook that receives Showmore's order notifications has no logged-in user —
+   it needs this key to be allowed to write to the database at all.
+3. **Once deployed, register the webhook URL on Showmore's side**: go to Showmore's
+   backend → 串接文件 (integration docs) settings, and paste in
+   `https://daystar-os.vercel.app/api/webhooks/showmore`. I'll remind you of this
+   exact URL once step 1 and 2 are done and it's live.
+
+**What it actually does, once live:** every time an order is created, canceled,
+edited, or returned on Showmore, it automatically pulls the full order and
+updates that day's numbers on your Revenue screen — no more manual CSV exports.
+It also updates per-product sales numbers, which feeds things like the Hero
+Products reorder alerts on your Overview page (those weren't actually being fed
+by anything before this). There's also a "Sync now" button on the Revenue import
+page for pulling in a date range by hand — useful for backfilling your order
+history once this is live, or double-checking a week if something looks off.
+
+**One real thing I found and fixed along the way:** your product catalogue
+import was reading Showmore's own SKU field but throwing it away — never saving
+it. Fixed that too, since order matching depends on it: as you fill in SKUs on
+Showmore's side and re-run the product import, order-to-product matching gets
+more accurate automatically, no rebuild needed.
+
+**What "automatic" doesn't cover:** it won't touch your Operations daily log
+(the one you/the team fill in by hand) — that has real fields no order feed
+could know, like errors and CS response times, and I didn't want to risk
+silently overwriting something someone typed in. If you'd ever want order
+counts feeding into that too, just ask.
+
+## 2026-09-21, later: click-tested the whole live site
+
+You logged me into the real site and I clicked through every screen in the
+sidebar to check nothing else is quietly broken — same spirit as how the
+Operations 404 got found. Results:
+
+- **Operations** (my build from earlier today): tested both tabs for real.
+  Created a daily-log entry, watched the KPIs and 30-day totals update
+  correctly, then edited it. Created a CS case, then changed its status to
+  "resolved" and watched it re-sort and the pending count drop — this is
+  the exact code path the build-error fix touched (issue type saving
+  correctly, status stamping correctly). Confirmed working end to end.
+- **Everything else** — Projects, Goals, Content, the Company Health score
+  on your Overview page, SOPs, Reviews (覆盤), Marketing, Finance, Team,
+  the ⌘K search, and Notifications — all loaded real data with no errors.
+  Nothing 404s, nothing showed a blank or broken screen.
+- The "missing isn't zero" behavior held up everywhere I looked — things
+  with no data yet show a dash or "no data," never a false zero.
+
+**Two things I left behind on purpose:** a test daily-log entry dated
+2026-09-21 in Operations, and a test CS case ("Test Customer QA" /
+TEST-0921, now marked resolved). Both have delete buttons that pop a
+browser confirm dialog, which isn't safe for me to click through
+automated — you're welcome to delete them yourself next time you're in
+there, or just leave them, they're harmless.
+
+Nothing else needs your attention from this pass.
+
 ## 2026-09-21: the git push landed, and the Operations screen is built
 
 The push from two days ago finally went through — everything built since 09-16

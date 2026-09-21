@@ -53,6 +53,7 @@ Accounts: `kaistarkai77@gmail.com` (KAi, founder) · `lucasmccollister@gmail.com
 | Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested |
 | Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested. Table has no populate path yet (no fan-out/cron) |
 | Operations `/operations` — **new 2026-09-21**: Daily log (`operations_daily`, upsert-by-day) / CS cases (`customer_service_cases`, full CRUD with status workflow) in one tabbed screen (`?tab=daily` / `?tab=cs`). See § below — this page didn't exist; the sidebar link 404'd since the app's first session |
+| Showmore order sync — **new 2026-09-21**: live webhook (`POST /api/webhooks/showmore`) + manual backfill panel on `/revenue/import` pull orders straight from Showmore's API into `sales_daily`/`product_sales_daily`, no CSV needed. Sandbox-verified only (86/86 tests incl. 10 new); **not yet deployed or click-tested live** — needs migrations 0010/0011 applied, `SUPABASE_SERVICE_ROLE_KEY` added to Vercel, and the webhook URL registered on Showmore's side. See § below |
 
 > **✅ Decision made 2026-09-16: email only, not phone.** Asked directly ("email
 > only" / "add phone + email" / "keep as-is"), Lucas picked **email only**.
@@ -1202,6 +1203,119 @@ model multi-channel data, but nothing today writes to them except the manual
 Revenue entry form and the one-time Showmore CSV import wizard. Needs platform API
 credentials/webhook setup from Lucas before real work can start; not something to
 build speculatively without that.
+
+**Showmore order sync built (2026-09-21, same day).** Lucas got Showmore's real
+API docs (their Swagger spec, read live via the browser pane — not guessed at)
+and an API key, added `SHOWMORE_API_KEY` to Vercel himself, and said to build.
+Shopee is a separate, not-yet-started project (needs its own registration/API —
+nothing here touches it; see the flag above).
+
+*What Showmore's API actually gives:* a webhook (`/your_shipping_webhook` in
+their spec — registered on THEIR side, doesn't need to match this app's route
+name) that fires on order created/canceled/edited/returned/reviewing/
+reviewing_reject, HMAC-SHA256-signed with the API key; `GET /api/v1/order` for
+one order's full detail by `order_number`; `GET /api/v1/order/allorders` for
+every order in a date range, already with full item detail (no per-order
+follow-up call needed for a range fetch).
+
+*Architecture decision: feed the existing daily-aggregate tables, not a new
+orders ledger.* Checked the schema first — this app has no per-order table
+anywhere; Revenue and Operations are both daily aggregates
+(`sales_daily`/`product_sales_daily`/`operations_daily`), and
+`customer_service_cases.order_ref` is already free text, not a foreign key —
+confirming no per-order table was ever assumed. `sales_channels` already has a
+`website` key sitting unused; Showmore **is** the storefront (all its orders are
+channel `website` by construction — Shopee, whenever built, is a wholly separate
+API, never reachable through Showmore), so this was the obvious fit. A full
+per-order ledger would have been a much bigger, riskier lift for a want
+("orders show up automatically") that daily aggregates already satisfy.
+
+*Reused business logic instead of reinventing it.* `lib/import/showmore.ts`
+already parses Showmore's order-export CSV for the manual revenue-import
+wizard, and had already worked out what counts as revenue (excluded statuses,
+a returned order counting in both gross AND refunds, channel mapping) through
+real production use. The new live-API path
+(`lib/integrations/showmoreOrders.ts`) mirrors those exact rules — excluded =
+棄單審核中(3)/已棄單(4), returned = 已退貨(6) — just against the API's integer
+`order_status` instead of the CSV's Chinese status text, so a day looks the
+same in Revenue whether a manual CSV import or the live sync touched it. One
+deliberate v1 gap carried over unchanged from the CSV path: 已部分退貨(7) (partial
+return) and 退貨中(10) are left as ordinary revenue, not prorated — Showmore's
+`items[].quantity_returned` would let a later version do that properly.
+
+*A real gap found and fixed along the way: Showmore's SKU was silently
+discarded.* Went looking at how the product catalogue import
+(`lib/import/productImportPlan.ts`) works before promising Lucas that adding
+SKUs on Showmore's side would improve order-item matching — and found it
+wouldn't have: the importer reads Showmore's own SKU (`商品編號(sku)` column)
+into `ParsedVariant.sku` but never writes it anywhere; `products.sku`/
+`product_variants.sku` hold only this app's own generated `DS-####` codes.
+Fixed by adding `product_variants.showmore_sku` (migration 0010) and having the
+importer actually save what it already parses — 2 new tests
+(`productImportPlan.test.ts`) confirm it's carried through on both first import
+and re-import, and that it's kept separate from the generated `sku`.
+
+*Matching an order line item to a catalogue row is inherently best-effort* —
+order data carries Showmore's SKU (nullable) and product/variant NAME text,
+never a stable id. `matchCatalogueItem` (`showmoreOrders.ts`) tries SKU first,
+then exact product+variant name, then (only when the order line has no variant
+name and the product has exactly one variant) that variant — never a fuzzier
+guess. A miss doesn't lose the sale: the day's `orders`/`gross`/`refunds` come
+from the order itself, not from summing matched lines, so only the per-product
+breakdown (and anything computed from it, like Overview's Hero Products
+sell-through/reorder-urgency numbers) is affected by an unmatched item. Misses
+are logged to `activity_logs` (visible in Overview's existing "Recent Activity"
+feed — reused rather than building new UI) instead of silently dropped.
+
+*Found and fixed a second real gap while wiring that log write:* `activity_logs`
+had a select policy but no insert policy at all — every row in it came from a
+trigger (`log_activity()`, migration 0001) writing with elevated privileges,
+never from application code directly. That's invisible from the webhook route
+(service-role client bypasses RLS) but would have silently failed from the
+manual backfill action's ordinary user-session client. Fixed with a real
+insert policy, manager-or-above (migration 0011) — same bar the trigger's own
+writes represent.
+
+*What got built:* `lib/integrations/showmoreOrders.ts` (pure aggregation/
+matching logic, 10 tests), `showmoreClient.ts` (API client + HMAC signature
+verification via `node:crypto`, `timingSafeEqual` — no timing side-channel),
+`showmoreSyncWrite.ts` (the shared DB-write half, used by both callers below).
+Two entry points, one core: `src/app/api/webhooks/showmore/route.ts` (the
+service-role-client real-time path — on any event, refetches and resyncs the
+*whole day* the order belongs to, not just that one order, so other orders that
+day stay correctly summed; responding anything but plain-text "OK" makes
+Showmore retry automatically, so a thrown error is a free retry rather than a
+dropped event) and `syncShowmoreOrders` (`app/(app)/revenue/import/
+showmoreOrderSyncActions.ts`, manager/founder-gated, backing a small "Sync now"
+date-range panel on `/revenue/import` — for the first historical backfill and
+for spot-checking a range, since the webhook only covers what happens after
+it's registered).
+
+*Deliberately left alone:* `operations_daily`. Its upsert **replaces** the
+whole day's row (same "save replaces the day" idiom this sync itself uses for
+`sales_daily`), and that table also carries fields no order feed could ever
+know — errors, returns-as-logged-by-a-human, CS pending, fulfillment timing —
+that the team enters by hand on the Operations screen. Auto-writing order
+counts into it risked silently clobbering real hand-entered operational data.
+Left for the team's existing manual daily-log workflow; revisit only if Lucas
+asks for it explicitly.
+
+*Verification ceiling, same as always in this sandbox:* no live Supabase, no
+`node_modules` (`react`/`lucide-react`/`next/*` all fail to resolve here by
+design — see `npm run test:calc`'s own limits below), so nothing here has run
+against a real database or been click-tested. What **was** run: `npm run
+test:calc` — 86/86 passing (76 pre-existing + 10 new in
+`showmoreOrders.test.ts`, plus 2 new in `productImportPlan.test.ts` for the
+`showmore_sku` fix), and every new/changed `.ts`/`.tsx` file resolves cleanly
+via `npx tsx --eval "require(...)"` up to the first genuinely-external import
+(`next/server`, `next/cache`, `lucide-react`, `@supabase/supabase-js` — the
+same expected ceiling documented in §0). **Before this goes live**, Lucas needs
+to: apply migrations 0010 and 0011 to the real Supabase project; add
+`SUPABASE_SERVICE_ROLE_KEY` to Vercel (Supabase project settings → API →
+`service_role` key — the webhook route has no user session to authenticate
+with, so it needs this to write at all, and it wasn't already set); and, once
+deployed, register `https://daystar-os.vercel.app/api/webhooks/showmore` on
+Showmore's 串接文件 settings page.
 
 ---
 

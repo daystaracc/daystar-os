@@ -76,6 +76,7 @@ export async function importShowmoreProducts(csvText: string): Promise<ImportOut
       product_id: productId,
       name: v.name,
       sku: v.sku,
+      showmore_sku: v.showmoreSku,
       price: v.price,
       cost: v.cost,
       attributes: v.attributes,

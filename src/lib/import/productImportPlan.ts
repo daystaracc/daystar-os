@@ -49,6 +49,8 @@ export interface PlannedVariant {
   externalId: string;
   id: string | null;
   sku: string;
+  /** Showmore's own SKU, verbatim (nullable — most rows have none). Separate from `sku`, which is ours. */
+  showmoreSku: string | null;
   name: string;
   price: number | null;
   cost: number | null;
@@ -145,6 +147,9 @@ export function planProductImport(parsed: ParsedProduct[], existing: ExistingSta
         id: foundVariant?.id ?? null,
         // Variant SKUs hang off the product's, so they stay readable and stable.
         sku: foundVariant?.sku ?? `${sku}-${String(i + 1).padStart(2, '0')}`,
+        // Always refreshed from the export, same as price/cost — Showmore's SKU can be
+        // filled in or edited there after the fact.
+        showmoreSku: variant.sku,
         name: variant.label || product.name,
         price: variant.price,
         cost: variant.cost,

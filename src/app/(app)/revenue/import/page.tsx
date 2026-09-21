@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
 import { can, type Role } from '@/lib/permissions';
 import { RevenueImportWizard } from './RevenueImportWizard';
+import { ShowmoreOrderSyncPanel } from './ShowmoreOrderSyncPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,17 @@ export default async function RevenueImportPage() {
         <h1 className="text-xl font-semibold tracking-tight">{t('revenue.import.title')}</h1>
         <p className="mt-1 text-sm text-ink-2">{t('revenue.import.subtitle')}</p>
       </header>
+
+      <ShowmoreOrderSyncPanel labels={{
+        title: t('revenue.import.sync.title'), subtitle: t('revenue.import.sync.subtitle'),
+        since: t('revenue.import.sync.since'), until: t('revenue.import.sync.until'),
+        run: t('revenue.import.sync.run'), running: t('revenue.import.sync.running'),
+        resultTitle: t('revenue.import.sync.resultTitle'),
+        ordersIncluded: t('revenue.import.sync.ordersIncluded'), ordersExcluded: t('revenue.import.sync.ordersExcluded'),
+        daysWritten: t('revenue.import.sync.daysWritten'), productsWritten: t('revenue.import.sync.productsWritten'),
+        unmatched: t('revenue.import.sync.unmatched'), unmatchedNote: t('revenue.import.sync.unmatchedNote'),
+        failed: t('revenue.import.sync.failed'),
+      }} />
 
       <RevenueImportWizard locale={locale} labels={{
         title: t('revenue.import.title'), subtitle: t('revenue.import.subtitle'),

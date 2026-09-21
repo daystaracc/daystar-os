@@ -61,6 +61,14 @@ export const zhHant: Dictionary = {
       customersReplaceNote: '會以雜湊處理過的電話號碼比對（絕不儲存電話本身），寫入每位顧客從此檔案算出的完整累計數字。請務必上傳完整訂單歷史，而非僅新訂單，否則既有顧客的累計數字會被低估。',
       customersDone: '顧客資料已更新', customersFailed: '顧客匯入失敗',
     },
+    sync: {
+      title: '直接從 Showmore 同步', subtitle: '直接從 Showmore API 拉取指定期間的訂單，不需要檔案。Webhook 在 Showmore 後台註冊後，新訂單會自動同步；這裡用來補齊歷史資料，或重新核對某段期間。',
+      since: '起始日期', until: '結束日期', run: '立即同步', running: '同步中…',
+      resultTitle: '同步完成', ordersIncluded: '已同步訂單', ordersExcluded: '已排除（棄單）',
+      daysWritten: '更新天數', productsWritten: '更新商品數', unmatched: '無法比對品項',
+      unmatchedNote: '營收總額不受影響——無法比對的品項只影響歸屬到哪個商品。詳情見總覽頁的「最近動態」。',
+      failed: '同步失敗',
+    },
   },
   import: {
     title: '匯入商品', subtitle: 'Showmore 商品管理 → 匯出。確認前不會寫入任何資料。',

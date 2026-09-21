@@ -59,6 +59,14 @@ export const en = {
       customersReplaceNote: 'Writes each customer’s full lifetime totals from this file, matched by a hashed phone number — never the number itself. Always upload your complete order history, not just new orders, or existing customers’ totals will be understated.',
       customersDone: 'Customers updated', customersFailed: 'Customer import failed',
     },
+    sync: {
+      title: 'Sync from Showmore directly', subtitle: 'Pulls orders straight from Showmore’s API for a date range — no file needed. Once the webhook is registered on Showmore’s side, new orders sync automatically; use this to backfill history or re-check a range.',
+      since: 'Since', until: 'Until', run: 'Sync now', running: 'Syncing…',
+      resultTitle: 'Sync complete', ordersIncluded: 'Orders synced', ordersExcluded: 'Excluded (abandoned)',
+      daysWritten: 'Days updated', productsWritten: 'Products updated', unmatched: 'Items unmatched',
+      unmatchedNote: 'Revenue totals are correct either way — unmatched items only affect which product they’re attributed to. See Recent Activity on Overview for details.',
+      failed: 'Sync failed',
+    },
   },
   import: {
     title: 'Import products', subtitle: 'Showmore 商品管理 → 匯出. Nothing is written until you confirm.',
