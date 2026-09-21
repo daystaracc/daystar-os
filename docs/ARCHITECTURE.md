@@ -1171,6 +1171,28 @@ isn't runnable here (`node_modules` isn't installed in this sandbox), so this is
 the same verification ceiling every other screen in this table has been built
 under, not a lower bar applied only to this one.
 
+**That verification ceiling missed a real bug, found the hard way (2026-09-21,
+same day).** The Vercel build for this commit failed. Without a runnable `tsc`
+against the real `Database` type in this sandbox, the fix came from spotting a
+structural deviation instead: `updateCsCase` built its patch object as
+`Record<string, unknown>`, but every other partial-update action in this codebase
+(`updateGoal`, `updateTask`, `updateContentStatus`) passes either the zod-parsed
+object directly or a precisely-typed local interface — never a widened
+`Record<string, unknown>` — because Supabase's generated client types `.update()`'s
+argument against the exact `Tables[T]['Update']` shape, and a widened `Record`
+isn't assignable to it. Fixed by typing `patch` explicitly. Auditing the fix
+surfaced a second, more important bug in the same two functions: `issueType`
+(camelCase, from the form) was never renamed to `issue_type` (the actual column)
+before being spread into the `.insert()`/`.update()` calls — it would have
+compiled under the old loose typing and then either silently dropped the field or
+thrown a Postgres "column does not exist" error the first time someone changed a
+case's issue type. Both `createCsCase` and `updateCsCase` fixed. Lesson for next
+time: when a partial update needs camelCase→snake_case renaming, reach for the
+`updateContentStatus`-style precisely-typed local patch interface from the start,
+never a `Record<string, unknown>` — it's not just a build-breaker, it's exactly
+the shape of typo that a real type would have caught immediately instead of
+compiling wrong.
+
 Lucas separately asked for automatic order ingestion from Showmore, 蝦皮 (Shopee),
 and future platforms. Flagged to him directly rather than silently built: this is
 a webhook-integration project (each platform pushing order events to an endpoint

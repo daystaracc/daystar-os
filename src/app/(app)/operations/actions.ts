@@ -118,9 +118,9 @@ export async function createCsCase(raw: unknown): Promise<ActionResult<string>> 
   const c = await ctx();
   if (!c || !canManage(c.role)) return fail('forbidden');
 
-  const { customerName, orderRef, ownerId, ...rest } = parsed.data;
+  const { customerName, orderRef, ownerId, issueType, ...rest } = parsed.data;
   const { data, error } = await c.sb.from('customer_service_cases')
-    .insert({ ...rest, organization_id: c.orgId, customer_name: customerName, order_ref: orderRef, owner_id: ownerId }).select('id').single();
+    .insert({ ...rest, organization_id: c.orgId, customer_name: customerName, order_ref: orderRef, owner_id: ownerId, issue_type: issueType }).select('id').single();
   if (error || !data) return fail('failed');
   refresh();
   return ok(data.id);
@@ -138,11 +138,16 @@ export async function updateCsCase(id: string, raw: unknown): Promise<ActionResu
   const c = await ctx();
   if (!c || !canManage(c.role)) return fail('forbidden');
 
-  const { customerName, orderRef, ownerId, status, ...rest } = parsed.data;
-  const patch: Record<string, unknown> = { ...rest };
+  const { customerName, orderRef, ownerId, issueType, status, ...rest } = parsed.data;
+  const patch: {
+    customer_name?: string | null; order_ref?: string | null; owner_id?: string | null; issue_type?: string;
+    status?: 'open' | 'waiting' | 'resolved' | 'closed'; resolved_at?: string | null;
+    channel?: string; resolution?: string | null; notes?: string | null;
+  } = { ...rest };
   if (customerName !== undefined) patch.customer_name = customerName;
   if (orderRef !== undefined) patch.order_ref = orderRef;
   if (ownerId !== undefined) patch.owner_id = ownerId;
+  if (issueType !== undefined) patch.issue_type = issueType;
   if (status !== undefined) {
     patch.status = status;
     patch.resolved_at = status === 'resolved' || status === 'closed' ? new Date().toISOString() : null;
