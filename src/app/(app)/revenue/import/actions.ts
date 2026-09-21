@@ -149,6 +149,11 @@ export async function importShowmoreCustomers(csvText: string): Promise<Customer
     organization_id: orgId,
     phone_hash: c.phoneHash,
     name: c.name,
+    // Real email, not hashed — Lucas's 2026-09-16 decision (email only, not
+    // phone; see the file-level note in lib/import/customerAggregation.ts).
+    // `customers.email` already existed in the schema for manual entry; this
+    // is its first write path.
+    email: c.email,
     orders_count: c.ordersCount,
     total_spent: c.totalSpent,
     first_order_at: c.firstOrderAt,

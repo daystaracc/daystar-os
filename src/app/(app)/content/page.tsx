@@ -107,7 +107,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
         <ContentDrawer options={page.options} onCloseHref="/content"
           content={editing ? {
             id: editing.id, title: editing.title, type: editing.type, platform: editing.platform, status: editing.status,
-            ownerId: editing.owner?.id ?? '', productId: editing.product?.id ?? '',
+            ownerId: editing.owner?.id ?? '', productId: editing.product?.id ?? '', campaignId: editing.campaign?.id ?? '',
             talent: editing.talent ?? '', concept: editing.concept ?? '', hook: editing.hook ?? '',
             shootDate: editing.shootDate ?? '', publishDate: editing.publishDate ?? '', url: editing.url ?? '', notes: editing.notes ?? '',
           } : undefined}
@@ -116,7 +116,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
             title: t('content.title'), type: t('content.type'), platform: t('content.platform'), owner: t('common.owner'), product: t('content.product'),
             status: t('content.status'), talent: t('content.talent'), concept: t('content.concept'), hook: t('content.hook'),
             shootDate: t('content.shootDate'), publishDate: t('content.publishDate'), url: t('content.url'), notes: t('content.notes'),
-            noOwner: t('content.noOwner'), noProduct: t('content.noProduct'),
+            noOwner: t('content.noOwner'), noProduct: t('content.noProduct'), campaign: t('content.campaign'), noCampaign: t('content.noCampaign'),
             save: t('content.save'), saving: t('content.saving'), cancel: t('content.cancel'), create: t('content.create'),
             close: t('common.close'), saveFailed: t('content.saveFailed'),
             typeLabels, platformLabels, statusLabels, advanced: t('tasks.advanced'),

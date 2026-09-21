@@ -28,7 +28,13 @@ export interface SearchResult {
  * function inherits that automatically rather than needing its own copy of the rule.
  */
 export async function globalSearchEntities(query: string): Promise<SearchResult[]> {
-  const q = query.trim();
+  // Capped at 200 chars 2026-09-17, same reasoning as the identical cap added to
+  // CRM's customer search the same day (lib/data/crm.ts) — no real search term is
+  // anywhere near this long, so it only ever trims a pathological input, never a
+  // real one. Lower stakes here than CRM's `.or()`-based search (no comma/paren
+  // injection risk — postgrest-js parameterizes `.ilike()`'s value, it's never
+  // spliced into raw SQL), but worth the same one-line guard for consistency.
+  const q = query.trim().slice(0, 200);
   if (q.length < 2) return [];
 
   const sb = await createClient();

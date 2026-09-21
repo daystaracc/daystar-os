@@ -5,12 +5,12 @@ import { X } from 'lucide-react';
 import { createContent, updateContent } from '@/app/(app)/content/actions';
 import { CONTENT_TYPE, CONTENT_PLATFORM, CONTENT_STATUS, type ContentType, type ContentPlatform, type ContentStatus } from '@/lib/content/constants';
 
-export interface ContentDrawerOptions { owners: { id: string; name: string }[]; products: { id: string; name: string }[] }
+export interface ContentDrawerOptions { owners: { id: string; name: string }[]; products: { id: string; name: string }[]; campaigns: { id: string; name: string }[] }
 
 export interface ContentDrawerLabels {
   newContent: string; editContent: string; title: string; type: string; platform: string; owner: string; product: string;
   status: string; talent: string; concept: string; hook: string; shootDate: string; publishDate: string; url: string; notes: string;
-  noOwner: string; noProduct: string;
+  noOwner: string; noProduct: string; campaign: string; noCampaign: string;
   save: string; saving: string; cancel: string; create: string; close: string; saveFailed: string;
   typeLabels: Record<ContentType, string>; platformLabels: Record<ContentPlatform, string>; statusLabels: Record<ContentStatus, string>;
   advanced: string;
@@ -18,7 +18,7 @@ export interface ContentDrawerLabels {
 
 export interface ContentDraft {
   id: string; title: string; type: ContentType; platform: ContentPlatform; status: ContentStatus;
-  ownerId: string; productId: string; talent: string; concept: string; hook: string;
+  ownerId: string; productId: string; campaignId: string; talent: string; concept: string; hook: string;
   shootDate: string; publishDate: string; url: string; notes: string;
 }
 
@@ -39,6 +39,7 @@ export function ContentDrawer({ options, labels, content, onCloseHref }: {
   const [status, setStatus] = useState<ContentStatus>(content?.status ?? 'idea');
   const [ownerId, setOwnerId] = useState(content?.ownerId ?? '');
   const [productId, setProductId] = useState(content?.productId ?? '');
+  const [campaignId, setCampaignId] = useState(content?.campaignId ?? '');
   const [talent, setTalent] = useState(content?.talent ?? '');
   const [concept, setConcept] = useState(content?.concept ?? '');
   const [hook, setHook] = useState(content?.hook ?? '');
@@ -62,7 +63,7 @@ export function ContentDrawer({ options, labels, content, onCloseHref }: {
     setError(null);
     start(async () => {
       const base = {
-        title, content_type: type, platform, owner_id: ownerId, product_id: productId,
+        title, content_type: type, platform, owner_id: ownerId, product_id: productId, campaign_id: campaignId,
         talent, concept, hook, shoot_date: shootDate, publish_date: publishDate, url, notes,
         ...(editing ? { status } : {}),
       };
@@ -135,6 +136,12 @@ export function ContentDrawer({ options, labels, content, onCloseHref }: {
                   </Field>
                   <Field label={labels.hook}>
                     <input maxLength={500} value={hook} onChange={e => setHook(e.target.value)} className="input" />
+                  </Field>
+                  <Field label={labels.campaign}>
+                    <select value={campaignId} onChange={e => setCampaignId(e.target.value)} className="input">
+                      <option value="">{labels.noCampaign}</option>
+                      {options.campaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                   </Field>
                   <Field label={labels.shootDate}>
                     <input type="date" value={shootDate} onChange={e => setShootDate(e.target.value)} className="input" />

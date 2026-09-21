@@ -8,6 +8,10 @@ import type { ContentType, ContentPlatform, ContentStatus } from '@/lib/content/
 export interface ContentOptions {
   owners: { id: string; name: string }[];
   products: { id: string; name: string }[];
+  /** Added 2026-09-16 — `content.campaign_id` has existed in the schema since the
+   * original migration, but nothing in the app ever read or wrote it until now (see
+   * the doc comment on `getContentPage` below). */
+  campaigns: { id: string; name: string }[];
 }
 
 export interface ContentRow {
@@ -17,6 +21,9 @@ export interface ContentRow {
   platform: ContentPlatform;
   owner: { id: string; name: string } | null;
   product: { id: string; name: string } | null;
+  /** Added 2026-09-16 — see `getContentPage`'s doc comment. Null just means this
+   * piece isn't tied to a paid campaign, same as `product` for organic-only content. */
+  campaign: { id: string; name: string } | null;
   status: ContentStatus;
   shootDate: string | null;
   publishDate: string | null;
@@ -56,17 +63,19 @@ export interface ContentPage {
 const STATUS_RANK: Record<ContentStatus, number> = { idea: 0, script: 1, ready_to_shoot: 2, shot: 3, editing: 4, review: 5, scheduled: 6, published: 7 };
 
 // One literal string, not built with `+` — see tasks.ts's SELECT/DETAIL_SELECT note.
-const SELECT = 'id, title, content_type, platform, owner_id, product_id, status, shoot_date, publish_date, talent, concept, hook, url, notes, created_by, owner:owner_id(id, display_name, full_name), products:product_id(id, name, name_zh), content_metrics(views)';
+const SELECT = 'id, title, content_type, platform, owner_id, product_id, campaign_id, status, shoot_date, publish_date, talent, concept, hook, url, notes, created_by, owner:owner_id(id, display_name, full_name), products:product_id(id, name, name_zh), campaigns:campaign_id(id, name), content_metrics(views)';
 
 export async function getContentOptions(orgId: string, locale: Locale): Promise<ContentOptions> {
   const sb = await createClient();
-  const [{ data: people }, { data: products }] = await Promise.all([
+  const [{ data: people }, { data: products }, { data: campaigns }] = await Promise.all([
     sb.from('memberships').select('profile_id, profiles:profile_id(id, display_name, full_name)').eq('organization_id', orgId).eq('status', 'active'),
     sb.from('products').select('id, name, name_zh').eq('organization_id', orgId).order('name'),
+    sb.from('campaigns').select('id, name').eq('organization_id', orgId).order('start_date', { ascending: false }),
   ]);
   return {
     owners: (people ?? []).map(m => one(m.profiles)).filter(Boolean).map(p => ({ id: p!.id, name: personName(p!) })).sort((a, b) => a.name.localeCompare(b.name)),
     products: (products ?? []).map(p => ({ id: p.id, name: localizedField(p, 'name', locale) })),
+    campaigns: (campaigns ?? []).map(c => ({ id: c.id, name: c.name })),
   };
 }
 
@@ -78,6 +87,15 @@ export async function getContentOptions(orgId: string, locale: Locale): Promise<
  * publishing-pace card built from the already-tested `computePacing()` /
  * `weekBounds()` in `lib/calculations/pacing.ts` (the same functions Revenue's period
  * switcher uses) — no new pure logic for this screen.
+ *
+ * `campaign` (added 2026-09-16): `content.campaign_id` has been in the schema since
+ * the original migration (a creator/content piece tied to a specific paid push), but
+ * nothing ever read or wrote it — Content and Marketing existed as two disconnected
+ * screens despite the schema already linking them. `campaigns` RLS is the generic
+ * per-table shape (select = any active member, same as `content_select`), so no
+ * member who can already see Content can be blocked from seeing which campaign a
+ * piece belongs to. Optional in both create and edit — most content has no paid
+ * campaign behind it, same as most content having no `product_id`.
  */
 export async function getContentPage(orgId: string, role: Role, userId: string, locale: Locale, asOf = new Date().toISOString().slice(0, 10)): Promise<ContentPage> {
   const sb = await createClient();
@@ -90,6 +108,7 @@ export async function getContentPage(orgId: string, role: Role, userId: string, 
   ]);
   if (list.error) return { items: [], pacing: { target: null, publishedThisWeek: 0, pacing: null }, options, error: true };
 
+
   const target = targets.data?.[0] ? Number(targets.data[0].value) : null;
   const publishedThisWeek = (list.data ?? []).filter(c => c.status === 'published' && c.publish_date && c.publish_date >= week.start && c.publish_date <= week.end).length;
   const pacing = target !== null ? computePacing({ target, actual: publishedThisWeek, periodStart: week.start, periodEnd: week.end, asOf }) : null;
@@ -101,6 +120,7 @@ export async function getContentPage(orgId: string, role: Role, userId: string, 
     platform: c.platform as ContentPlatform,
     owner: one(c.owner) ? { id: one(c.owner)!.id, name: personName(one(c.owner)!) } : null,
     product: one(c.products) ? { id: one(c.products)!.id, name: localizedField(one(c.products)!, 'name', locale) } : null,
+    campaign: one(c.campaigns) ? { id: one(c.campaigns)!.id, name: one(c.campaigns)!.name } : null,
     status: c.status as ContentStatus,
     shootDate: c.shoot_date,
     publishDate: c.publish_date,

@@ -131,12 +131,21 @@ export async function completeTask(id: string): Promise<ActionResult> {
   if (t.recurring_rule && t.due_date) {
     const next = nextOccurrence(t.due_date, t.recurring_rule);
     if (next) {
-      await c.sb.from('tasks').insert({
+      const { error: recurError } = await c.sb.from('tasks').insert({
         organization_id: t.organization_id, project_id: t.project_id, department_id: t.department_id,
         title: t.title, description: t.description, owner_id: t.owner_id, assignee_id: t.assignee_id,
         priority: t.priority, status: 'todo', due_date: next, labels: t.labels,
         recurring_rule: t.recurring_rule, recurring_parent_id: t.recurring_parent_id ?? t.id, created_by: c.user.id,
       });
+      // The task itself is already marked done at this point — that half of
+      // completeTask succeeded and should stay succeeded either way. But this
+      // insert's result used to be discarded entirely (found in the 2026-09-16
+      // audit): if it failed, the recurrence would silently stop with no trace
+      // anywhere. Logging server-side at least makes a broken recurrence
+      // discoverable instead of invisible; surfacing it in the UI itself would
+      // mean widening ActionResult's error union app-wide, a bigger change than
+      // this fix warrants on its own.
+      if (recurError) console.error(`completeTask: failed to create next occurrence of recurring task ${t.id}`, recurError);
     }
   }
   refresh();

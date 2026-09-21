@@ -13,6 +13,21 @@ const uuid = z.string().uuid();
 const emptyToNull = <T extends z.ZodTypeAny>(s: T) =>
   z.preprocess(v => (v === '' || v === undefined ? null : v), s.nullable());
 
+/**
+ * Bounded 2026-09-17: was `z.record(z.string(), z.string())` with no length or entry
+ * limit on either side — every other free-text field in this file (and every other
+ * actions.ts in the app) has a `.max()`, this was the one exception. Real-world risk
+ * is low (manager-or-above only, one plain-text input in VariantDrawer.tsx that
+ * parses "key: value, key: value" pairs — see `parseAttributes`), but an unbounded
+ * `z.record` is exactly the kind of gap the `next.config.ts` body-size-limit trap
+ * (see ARCHITECTURE.md "Traps") exists to catch, so it's worth closing rather than
+ * leaving as the only unbounded free-text field in the codebase. 20 entries / 50
+ * chars per key / 200 chars per value comfortably covers real variant dimensions
+ * (size, color, material, ...) with room to spare.
+ */
+const attributesSchema = z.record(z.string().trim().min(1).max(50), z.string().trim().min(1).max(200))
+  .refine(obj => Object.keys(obj).length <= 20, { message: 'Too many attributes' });
+
 async function ctx() {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
@@ -129,14 +144,14 @@ const createVariantSchema = z.object({
   sku: z.string().trim().min(1).max(60),
   price: emptyToNull(z.coerce.number().min(0)),
   cost: emptyToNull(z.coerce.number().min(0)),
-  attributes: z.record(z.string(), z.string()).default({}),
+  attributes: attributesSchema.default({}),
 });
 const updateVariantSchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
   sku: z.string().trim().min(1).max(60).optional(),
   price: emptyToNull(z.coerce.number().min(0)).optional(),
   cost: emptyToNull(z.coerce.number().min(0)).optional(),
-  attributes: z.record(z.string(), z.string()).optional(),
+  attributes: attributesSchema.optional(),
 });
 
 export async function createVariant(raw: unknown): Promise<ActionResult<string>> {

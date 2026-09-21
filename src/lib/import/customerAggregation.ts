@@ -18,10 +18,18 @@
  * `normalizePhone` (below) and `hashPhone` (`customerHash.server.ts`) are
  * exported and tested in isolation so that guarantee is independently
  * checkable. Every other `CUSTOMER_COLUMNS` field — address, bank account,
- * gender, birthday, recipient info — is still never read anywhere in this
- * codebase; this file only ever touches 訂購人 (name, kept in plain text, same
- * as any other CRM's customer name field) and 訂購人電話 (phone, hashed, never
- * stored).
+ * gender, birthday, recipient phone/name — is still never read anywhere in
+ * this codebase; this file only ever touches 訂購人 (name, kept in plain text,
+ * same as any other CRM's customer name field), 訂購人電話 (phone, hashed,
+ * never stored), and — as of 2026-09-16 — 收件人 Email (email, kept in plain
+ * text, same as name). The email decision is separate from the phone one:
+ * Lucas explicitly chose "email only, not phone" when asked (2026-09-16) —
+ * real email addresses ARE stored (unlike phone, which stays hash-only), so
+ * `customers.email` is a real, readable value once imported, not a hash. This
+ * is a smaller privacy footprint than storing phone numbers (no PDPA-relevant
+ * financial/identity data), but it is still real PII — do not extend this
+ * same "store it plainly" treatment to phone or any other `CUSTOMER_COLUMNS`
+ * field without a similarly explicit decision from Lucas first.
  *
  * This file itself never imports `node:crypto` — `extractCustomerOrders`
  * below takes a plain `(normalized: string) => string` hash function instead
@@ -41,9 +49,10 @@ const TOTAL_COL = '總額';
 const PAID_AT_COL = '付款時間';
 const NAME_COL = '訂購人';
 const PHONE_COL = '訂購人電話';
+const EMAIL_COL = '收件人 Email';
 
-export interface CustomerOrder { orderId: string; date: string; amount: number; name: string | null; phoneHash: string | null }
-export interface CustomerAggregate { phoneHash: string; name: string | null; ordersCount: number; totalSpent: number; firstOrderAt: string; lastOrderAt: string }
+export interface CustomerOrder { orderId: string; date: string; amount: number; name: string | null; phoneHash: string | null; email: string | null }
+export interface CustomerAggregate { phoneHash: string; name: string | null; email: string | null; ordersCount: number; totalSpent: number; firstOrderAt: string; lastOrderAt: string }
 
 const text = (v: unknown): string => (v === null || v === undefined ? '' : String(v).trim());
 const num = (v: unknown): number => {
@@ -95,11 +104,11 @@ export function extractCustomerOrders(rows: unknown[][], hash: (normalized: stri
   const at = (name: string) => header.indexOf(name);
   const iOrder = at(ORDER_COL);
   if (iOrder < 0) return { orders: [], warnings: [`Column "${ORDER_COL}" not found — is this a Showmore order export?`] };
-  const iStatus = at(STATUS_COL), iTotal = at(TOTAL_COL), iPaidAt = at(PAID_AT_COL), iName = at(NAME_COL), iPhone = at(PHONE_COL);
+  const iStatus = at(STATUS_COL), iTotal = at(TOTAL_COL), iPaidAt = at(PAID_AT_COL), iName = at(NAME_COL), iPhone = at(PHONE_COL), iEmail = at(EMAIL_COL);
   if (iPhone < 0) warnings.push(`Column "${PHONE_COL}" is missing — no customers can be identified from this file.`);
 
   const cell = (row: unknown[], i: number) => (i >= 0 ? row[i] : null);
-  const byOrder = new Map<string, { date: string; status: string; amount: number; name: string | null; phone: string | null }>();
+  const byOrder = new Map<string, { date: string; status: string; amount: number; name: string | null; phone: string | null; email: string | null }>();
 
   for (const row of rows.slice(1)) {
     const id = text(cell(row, iOrder));
@@ -114,6 +123,9 @@ export function extractCustomerOrders(rows: unknown[][], hash: (normalized: stri
         amount: 0,
         name: text(cell(row, iName)) || null,
         phone: iPhone >= 0 ? text(cell(row, iPhone)) || null : null,
+        // Unlike phone, a missing 收件人 Email column is not warned about — email is
+        // opportunistic enrichment, not the identity key a customer is grouped by.
+        email: iEmail >= 0 ? text(cell(row, iEmail)) || null : null,
       };
       byOrder.set(id, o);
     }
@@ -125,7 +137,7 @@ export function extractCustomerOrders(rows: unknown[][], hash: (normalized: stri
     if (!o.date) continue; // no derivable date — same exclusion as revenue
     if ((EXCLUDED_STATUSES as readonly string[]).includes(o.status)) continue;
     const normalized = o.phone ? normalizePhone(o.phone) : null;
-    orders.push({ orderId: id, date: o.date, amount: o.amount, name: o.name, phoneHash: normalized ? hash(normalized) : null });
+    orders.push({ orderId: id, date: o.date, amount: o.amount, name: o.name, phoneHash: normalized ? hash(normalized) : null, email: o.email });
   }
   return { orders, warnings };
 }
@@ -137,21 +149,23 @@ export function extractCustomerOrders(rows: unknown[][], hash: (normalized: stri
  * discipline as everywhere else in this app. `total_spent` is deliberately a
  * *gross* lifetime figure (a `已退貨` order still counts, same as revenue's own
  * gross total) — a returns-aware net figure would need a column this table
- * doesn't have yet; flagged here rather than silently decided. `name` takes
- * whichever order has the latest date, so a rare legal-name change doesn't get
- * stuck on an old order's spelling.
+ * doesn't have yet; flagged here rather than silently decided. `name` and
+ * `email` both take whichever order has the latest date, so a rare legal-name
+ * change or a customer switching emails doesn't get stuck on an old order's
+ * value — same "most recent wins" rule for both.
  */
 export function aggregateCustomers(orders: CustomerOrder[]): CustomerAggregate[] {
   const byHash = new Map<string, CustomerAggregate>();
   for (const o of orders) {
     if (!o.phoneHash) continue;
-    const c = byHash.get(o.phoneHash) ?? { phoneHash: o.phoneHash, name: null, ordersCount: 0, totalSpent: 0, firstOrderAt: o.date, lastOrderAt: o.date };
+    const c = byHash.get(o.phoneHash) ?? { phoneHash: o.phoneHash, name: null, email: null, ordersCount: 0, totalSpent: 0, firstOrderAt: o.date, lastOrderAt: o.date };
     const isLatest = o.date >= c.lastOrderAt;
     c.ordersCount += 1;
     c.totalSpent += o.amount;
     if (o.date < c.firstOrderAt) c.firstOrderAt = o.date;
     if (o.date > c.lastOrderAt) c.lastOrderAt = o.date;
     if (isLatest && o.name) c.name = o.name;
+    if (isLatest && o.email) c.email = o.email;
     byHash.set(o.phoneHash, c);
   }
   return [...byHash.values()].sort((a, b) => b.totalSpent - a.totalSpent);

@@ -49,6 +49,16 @@ export function homeFor(role: Role): string { return role === 'member' ? '/my-wo
  * Mirrors the `tasks_update` RLS policy so the UI can disable controls the database
  * would reject anyway: managers and founders edit anything; everyone else edits the
  * tasks they own, are assigned, or created.
+ *
+ * One deliberate gap, found in the 2026-09-16 audit: `tasks_update` RLS also allows
+ * `is_task_assignee(id)` — anyone listed in the `task_assignees` junction table, a
+ * multi-assignee capability that exists in the schema (migration 0001) but has no
+ * UI built for it anywhere in this app (nothing ever inserts into `task_assignees`
+ * — `lib/data/tasks.ts` doesn't even select from it). Since the table is always
+ * empty in practice, this function's answer matches RLS's for every task that
+ * actually exists today. It would stop matching only if something started writing
+ * to `task_assignees` without this function being updated alongside it — worth
+ * remembering if that feature ever gets built, not an active bug right now.
  */
 export function canEditTask(task: { owner_id: string | null; assignee_id: string | null; created_by: string | null }, role: Role, userId: string): boolean {
   if (role === 'founder' || role === 'manager') return true;

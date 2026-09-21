@@ -116,7 +116,7 @@ export function TaskPanel({ task, labels }: { task: TaskDetail; labels: TaskUiLa
                 </li>
               ))}
             </ul>
-            {task.canEdit && <AddLine placeholder={labels.checklistAdd} onAdd={v => run(() => addChecklistItem(task.id, v))} />}
+            {task.canEdit && <AddLine placeholder={labels.checklistAdd} maxLength={200} onAdd={v => run(() => addChecklistItem(task.id, v))} />}
           </Section>
 
           {/* dependencies */}
@@ -160,7 +160,7 @@ export function TaskPanel({ task, labels }: { task: TaskDetail; labels: TaskUiLa
                 ))}
               </ul>
             ) : <p className="text-sm text-ink-3">{labels.commentsEmpty}</p>}
-            <AddLine placeholder={labels.commentAdd} submitLabel={labels.commentSend} onAdd={v => run(() => addComment(task.id, v))} />
+            <AddLine placeholder={labels.commentAdd} submitLabel={labels.commentSend} maxLength={4000} onAdd={v => run(() => addComment(task.id, v))} />
           </Section>
 
           {/* activity */}
@@ -209,12 +209,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function AddLine({ placeholder, submitLabel, onAdd }: { placeholder: string; submitLabel?: string; onAdd: (value: string) => void }) {
+function AddLine({ placeholder, submitLabel, maxLength, onAdd }: { placeholder: string; submitLabel?: string; maxLength?: number; onAdd: (value: string) => void }) {
   const [value, setValue] = useState('');
   const send = () => { const v = value.trim(); if (v) { onAdd(v); setValue(''); } };
   return (
     <div className="mt-2 flex gap-2">
-      <input value={value} onChange={e => setValue(e.target.value)} placeholder={placeholder} aria-label={placeholder}
+      <input value={value} onChange={e => setValue(e.target.value)} placeholder={placeholder} aria-label={placeholder} maxLength={maxLength}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); send(); } }} className="input" />
       <button type="button" onClick={send} disabled={!value.trim()} aria-label={submitLabel ?? placeholder}
         className="btn-outline h-9 shrink-0 px-2.5 disabled:opacity-40">

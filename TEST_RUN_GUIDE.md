@@ -10,6 +10,24 @@ unclicked, code-level review — this section's status applies specifically to
 Revenue, Products, Inventory, CRM, and Settings; work through the remaining
 screens the same way.
 
+**Update, 2026-09-16:** the code-level review pass (permissions vs. actual RLS,
+edge cases, dead links) is now complete for every screen in the app, including
+the last two — Global search (⌘K) and Notifications — which came back clean
+(one cosmetic nitpick in a search-escaping helper, not a real bug; see
+`docs/ARCHITECTURE.md`). Nothing here has been click-tested yet except what's
+listed above — that's what `TOMORROW_2HR_GUIDE.md` walks through.
+
+**Update, 2026-09-16 (later):** big find — this whole build had never been
+committed to git before today. Lucas committed everything (`c96460c`), but
+the `git push` that should have deployed it to daystar-os.vercel.app didn't
+finish before he had to step away — see the dated note in `docs/ARCHITECTURE.md`
+§0 for the full story and what to try next. **Until that push actually
+completes, the live site is not current** — anyone testing should use
+`npm run dev` locally, not the Vercel URL, until this is confirmed resolved.
+Also: the customer-email decision Lucas asked about is resolved and built
+(email captured from imports going forward, phone stays hash-only) — see the
+same section.
+
 Work through it in order. Section 6 is the running list of everything already
 known to be missing or deliberately deferred — check there before filing
 something as a new bug.
@@ -380,6 +398,20 @@ export:
    code level 2026-09-15 (neither screen has a cap or seed-data assumption
    that would hide real rows), matching what Lucas already saw live.
 
+**2026-09-15: full code-level review of every remaining screen, clean.** With
+the live-data bugs found and fixed (§ above), every screen still marked
+"typechecks clean, not yet click-tested" — Goals, Projects, Content, Company
+Health, SOPs, Reviews, Marketing, Finance, Team — was read end-to-end (data
+layer + actions, not just skimmed) specifically hunting for the same bug
+classes already found tonight: role-gating mismatches against actual RLS,
+stale caps/assumptions from when a table was empty, calculation errors, and
+edge cases in create/edit/delete. Nothing new turned up — every `canEdit`/
+`canDelete` flag matches its table's real RLS policy exactly, every rollup/
+average has the zero-denominator guard the rest of this app is built around,
+and the self-demotion guard on Team is enforced server-side, not just in the
+UI. This doesn't replace clicking through them for real — it's the strongest
+check possible without a live browser, and it came back clean.
+
 ## 6. Known gaps — check here before filing a "bug"
 
 These are deliberate, already-documented scope decisions, not oversights.
@@ -443,15 +475,17 @@ name).
 
 ## 7. Automated test status (for reference, not something to re-run manually)
 
-`npm run test:calc` = **71/71 passing** as of 2026-09-14 (was 61/61 as of
-2026-09-13; the 10 new tests cover phone normalization, HMAC hashing, and
-customer aggregation for the new `/revenue/import` customer-import path —
+`npm run test:calc` = **74/74 passing** as of 2026-09-16 (was 71/71 as of
+2026-09-14, was 61/61 as of 2026-09-13; the 3 newest tests cover the
+2026-09-16 email-capture addition — latest-order-wins, missing-column
+doesn't warn, no-email stays null — in
 `lib/import/__tests__/customerAggregation.test.ts`), covering every pure
 calculation (revenue pacing, contribution margin, ad metrics, inventory
 valuation/reorder, key-result/project/system health scoring, the Showmore
-order/product CSV parsers, i18n key parity EN/繁中). This suite does **not**
-cover anything that touches Supabase, Next.js rendering, or RLS — those can
-only be checked by the click-through steps above. Re-run it any time with:
+order/product CSV parsers, i18n key parity EN/繁中, phone/email customer
+aggregation). This suite does **not** cover anything that touches Supabase,
+Next.js rendering, or RLS — those can only be checked by the click-through
+steps above. Re-run it any time with:
 
 ```
 npm run test:calc
@@ -459,3 +493,13 @@ npm run test:calc
 
 It should stay green. If it doesn't, something regressed — stop and fix before
 testing further.
+
+**2026-09-16 note:** this whole suite was also actually run end-to-end from
+this session's sandbox for the first time (previously only "parses clean"
+was checkable here) — every one of the 74 tests really executed and passed,
+not just parsed. The one file that needs the `server-only` npm package
+(`customerAggregation.test.ts`, via `customerHash.server.ts`) needed a
+throwaway local stub to run here, since this sandbox has no npm registry
+access — that stub is not part of the real codebase and was not committed
+anywhere. On your machine, `npm run test:calc` already has the real
+`server-only` package installed and needs no such workaround.

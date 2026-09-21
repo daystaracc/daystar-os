@@ -94,7 +94,7 @@ export function VariantDrawer({ productId, labels, variant, onCloseHref }: {
               </Field>
             </div>
             <Field label={labels.attributes}>
-              <input value={attributesText} onChange={e => setAttributesText(e.target.value)} className="input" />
+              <input maxLength={500} value={attributesText} onChange={e => setAttributesText(e.target.value)} className="input" />
             </Field>
           </div>
 

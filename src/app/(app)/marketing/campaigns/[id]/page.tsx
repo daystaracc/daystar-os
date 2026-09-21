@@ -7,6 +7,7 @@ import { can, type Role } from '@/lib/permissions';
 import { getCampaignDetail } from '@/lib/data/marketing';
 import { deleteCampaign } from '@/app/(app)/marketing/actions';
 import { CAMPAIGN_STATUS } from '@/lib/marketing/constants';
+import { CONTENT_STATUS } from '@/lib/content/constants';
 import { CampaignDrawer } from '@/components/marketing/CampaignDrawer';
 import { CampaignMetrics } from '@/components/marketing/CampaignMetrics';
 import { EntityActions } from '@/components/marketing/EntityActions';
@@ -41,6 +42,7 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
 
   const editOpen = first(sp.edit) === '1';
   const statusLabels = Object.fromEntries(CAMPAIGN_STATUS.map(s => [s, t(`marketing.campaignStatus_.${s}`)])) as Record<(typeof CAMPAIGN_STATUS)[number], string>;
+  const contentStatusLabels = Object.fromEntries(CONTENT_STATUS.map(s => [s, t(`content.status_.${s}`)])) as Record<(typeof CONTENT_STATUS)[number], string>;
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -84,6 +86,25 @@ export default async function CampaignDetailPage({ params, searchParams }: { par
           deleteMetric: t('marketing.deleteMetric'), deleteMetricConfirm: t('marketing.deleteMetricConfirm'),
           saveFailed: t('marketing.saveFailed'), deleteFailed: t('marketing.deleteFailed'),
         }} />
+
+      <div className="card card-pad space-y-2">
+        <div className="label">{t('marketing.linkedContent')}</div>
+        {!campaign.content.length ? (
+          <p className="text-sm text-ink-3">{t('marketing.linkedContentEmpty')}</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {campaign.content.map(item => (
+              <li key={item.id}>
+                <Link href={`/content?edit=${item.id}`} className="row-hover flex items-center gap-3 px-1 py-2">
+                  <span className="min-w-0 flex-1 truncate text-sm">{item.title}</span>
+                  <span className="pill pill-neutral shrink-0">{contentStatusLabels[item.status]}</span>
+                  <span className="w-20 shrink-0 text-right text-xs tabular-nums text-ink-3">{item.publishDate ?? '—'}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {editOpen && (
         <CampaignDrawer onCloseHref={`/marketing/campaigns/${campaign.id}`}

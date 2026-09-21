@@ -123,7 +123,7 @@ export function TaskDrawer({ options, labels, task }: { options: TaskOptions; la
                 </Field>
 
                 <Field label={labels.field.labels} hint={labels.field.labelsHint}>
-                  <input list="task-label-options" value={labelText} onChange={e => setLabelText(e.target.value)} className="input" />
+                  <input list="task-label-options" maxLength={1000} value={labelText} onChange={e => setLabelText(e.target.value)} className="input" />
                   <datalist id="task-label-options">{options.labels.map(l => <option key={l} value={l} />)}</datalist>
                 </Field>
 
@@ -153,7 +153,7 @@ export function TaskDrawer({ options, labels, task }: { options: TaskOptions; la
                           </div>
                         ))}
                         <div className="flex gap-2">
-                          <input value={checklistDraft} onChange={e => setChecklistDraft(e.target.value)} placeholder={labels.checklistAdd}
+                          <input maxLength={200} value={checklistDraft} onChange={e => setChecklistDraft(e.target.value)} placeholder={labels.checklistAdd}
                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (checklistDraft.trim()) { setChecklist(c => [...c, checklistDraft.trim()]); setChecklistDraft(''); } } }}
                             className="input" />
                           <button type="button" aria-label={labels.checklistAdd}

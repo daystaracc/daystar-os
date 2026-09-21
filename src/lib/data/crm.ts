@@ -84,8 +84,22 @@ export async function getCrmFlowsPage(orgId: string): Promise<CrmFlowsPage> {
 // ---------------------------------------------------------------------------
 // Monthly CRM metrics — manual, one row per month (`unique(organization_id,
 // month)`), same "saving replaces this period's figures" idiom as Revenue and
-// Marketing's ad spend, because there's no automatic computation yet: it would
-// need `customers` populated (see the scope note above), which isn't built.
+// Marketing's ad spend, because there's no automatic computation yet.
+//
+// Re-checked 2026-09-16, after `customers` was populated (see the scope note
+// above): `customers` population was NOT actually the blocker — it's still
+// manual because `customers` only stores per-customer *totals*
+// (`orders_count`, `total_spent`, `first_order_at`, `last_order_at`), not
+// per-order rows. Computing "new vs. returning this month", "repeat revenue
+// this month" or "avg orders this month" needs order-level date+amount data
+// per customer, which `lib/import/customerAggregation.ts` deliberately
+// collapses away during aggregation (`CustomerOrder` has it, per-row;
+// `CustomerAggregate`, what actually gets written, does not). Automating this
+// screen for real needs a schema decision — a per-order table, or storing the
+// monthly buckets at import time — that's a genuine architecture call on live
+// production data (5,404 real customers as of the first import), not a safe
+// unilateral change. Left manual on purpose; flag this reasoning to Lucas
+// before building it, don't just add a migration.
 // ---------------------------------------------------------------------------
 
 export interface MonthlyMetricRow {
@@ -139,9 +153,16 @@ export const CUSTOMER_LIST_PAGE_SIZE = 50;
  * wildcards, not literal characters someone searching a name would mean.
  * RLS still scopes every query to the caller's own organization regardless,
  * so this is about correctness (a garbled query), not a security boundary.
+ *
+ * Length-capped 2026-09-17 (`MAX_SEARCH_LEN`): `opts.query` comes straight off
+ * the `?q=` URL param with no bound at all before this — no name/email/phone
+ * search anyone would actually type is anywhere near 200 characters, so this
+ * only ever trims a pathological URL (hand-edited, or a bug elsewhere), never
+ * a real search.
  */
+const MAX_SEARCH_LEN = 200;
 function sanitizeSearchTerm(raw: string): string {
-  return raw.replace(/[,()]/g, '').replace(/[%_\\]/g, m => `\\${m}`).trim();
+  return raw.slice(0, MAX_SEARCH_LEN).replace(/[,()]/g, '').replace(/[%_\\]/g, m => `\\${m}`).trim();
 }
 
 export async function getCustomersPage(orgId: string, opts?: { query?: string; page?: number }): Promise<CustomersPage> {

@@ -4,6 +4,167 @@ A plain-language rundown of this session's work, updated after the "keep buildin
 while I'm away" run. Everything below is already saved to your `daystar-os` folder
 on your computer.
 
+## 2026-09-21: the git push landed, and the Operations screen is built
+
+The push from two days ago finally went through — everything built since 09-16
+(MER on Marketing, the Campaign field on Content, all the small hardening fixes)
+is now live on the real site.
+
+You reported **Operations (#12 in the sidebar) as a 404** — and you were right.
+It's been a link in the sidebar with nothing behind it since the very first
+session: the database tables existed, but the actual page never got built. It's
+built now, with two tabs:
+
+- **Daily log** — log each day's orders waiting/shipped, errors, returns, CS
+  pending, and (if you want to track it) how long fulfillment took and who
+  logged it. Shows today's numbers plus 30-day totals and averages up top.
+- **CS cases** — open customer service issues: channel, issue type, status
+  (open → waiting → resolved → closed), who owns it, resolution notes. Open and
+  waiting cases always sort to the top.
+
+Both were already wired into the "needs attention" list on your Command Center
+(stale CS cases, orders piling up) — that link just went nowhere until now. It
+does now.
+
+**On auto-pulling orders from Showmore and 蝦皮 (Shopee):** this is a real
+project, not a quick add — each platform would need to push order events to a
+webhook this app exposes, authenticated, mapped into the same tables Revenue
+already uses. Before I can start on it for real, I need whatever API/webhook
+access those platforms offer on your seller accounts — that's not something I
+can set up from here. Worth a short conversation about which platform to wire
+up first once you have that in hand.
+
+## 2026-09-17, later: five more small input-size fixes
+
+Follow-up to the one above — checked every text box in the app for the same
+kind of gap (no size limit) and found four more, all low-stakes: adding
+labels or a checklist item to a task, the CRM customer search box, and the
+⌘K quick-search box. All now capped at a sensible size, same as everywhere
+else. Nothing you need to do.
+
+## 2026-09-17: one small security/data-hygiene fix
+
+Went looking systematically for anywhere in the app that accepts free text
+or a list without a size limit (the kind of gap that's usually harmless
+until someone — or some bug — sends something huge). Found exactly one:
+a product variant's "attributes" field (the size/color/material text you
+type when adding a variant) had no limit at all. Low real risk — only
+managers can use it — but now it's capped at a sensible size, same as
+every other text field in the app. Nothing you need to do about this one.
+
+## 2026-09-16, later still: campaign pages now show their linked content
+
+Quick follow-up to the Content ↔ Campaign link below: a campaign's own detail
+page (Marketing → a campaign) now lists every piece of content tagged to it,
+with a one-click link straight into editing that piece. Small, safe addition —
+no new permissions, nothing that needed a live database to verify. Git push
+still unchanged, still stuck — see above.
+
+## 2026-09-16, later: Marketing ↔ Revenue connected, Content ↔ Campaign linked
+
+Two real features, plus a doc correction:
+
+1. **Marketing's MER number now actually shows up.** The Ad spend tab always
+   showed "MER not available yet" — the math for it existed for weeks, it
+   just was never told your total store revenue. Now it pulls that from
+   Revenue automatically and shows the real number; the old note only
+   reappears if that lookup ever fails.
+2. **You can now tag content with the campaign it belongs to.** Your database
+   has had a spot for this since the very first version of the app, but
+   nothing in the screens ever used it — Content and Marketing were two
+   islands even though the data connecting them already existed. Content →
+   New/Edit → Advanced now has a Campaign dropdown.
+3. Corrected an outdated code comment about CRM's monthly metrics (still
+   manual — see the updated `TOMORROW_2HR_GUIDE.md` for why) and re-ran the
+   full test suite clean (74/74) after all of today's changes.
+4. **The git push from earlier today is still stuck** — checked again just
+   now, unchanged. This is the #1 item in your updated
+   `TOMORROW_2HR_GUIDE.md`; none of today's work (this or the items below)
+   is on the live site yet.
+
+## 2026-09-16, continuing: last screens checked, one real bug fixed, full test run confirmed clean
+
+Went through the three earliest-built screens (Command Center, My Work, Tasks)
+with the same close look everything else got — that closes out every screen
+in the app. Found and fixed one real bug: if a recurring task's next
+occurrence failed to get created when you marked it done, that failure was
+completely invisible — the task just looked completed and nothing told you
+the repeat had silently broken. Now it at least gets logged so it's not
+invisible anymore. Also ran your entire automated test suite for real (not
+just checked that it reads correctly, actually ran every test) — **74 of 74
+pass**, including the 3 new ones for tonight's email-capture work.
+
+## 2026-09-16 midday: the git discovery, the email decision, and what's next
+
+Two things happened when you were at the keyboard for that hour:
+
+1. **We found this whole build had never actually been saved to git before.**
+   Everything from Revenue through Settings — the entire multi-day build — was
+   sitting as uncommitted changes on your computer. That's why the live site
+   never looked current. You ran the commit yourself (worked perfectly, 142
+   files) and started the push, but had to step away before it finished — I
+   checked afterward and it looks like it's still sitting there, not actually
+   sent to GitHub yet. My best guess (I can't see your screen to confirm): git
+   probably popped up a sign-in window that's still waiting for you. **Next
+   time you're at your computer: just run `git push` again from the
+   `daystar-os` folder, and if a sign-in window shows up, click through it.**
+   Until that's done, the live site still won't reflect anything new.
+
+2. **You picked "email only" for the customer info question** — I built it
+   while you were away. Going forward, real customer email addresses get
+   saved from each order import (phone numbers still stay scrambled, never
+   the real number — that part didn't change). This needed your computer to
+   receive the code, and it's already there waiting, along with the git-push
+   fix above.
+
+Nothing else needs a decision from you right now — just that one `git push`,
+then whenever you have another hour, the click-testing checklist below is
+still the main thing left.
+
+## 2026-09-16 early morning: last two screens checked, both clean
+
+The two screens that hadn't gotten a full read-through yet — the ⌘K search box
+and the notifications page — got the same close look everything else did
+overnight. Nothing wrong turned up. One tiny, harmless inconsistency: the
+search box's "make special characters safe" logic doesn't handle backslashes
+quite as completely as the newer Customers search box does — this only matters
+if someone searches for something containing a literal `\`, which basically
+never happens in practice. Not worth a special trip to fix; noted for whenever
+someone's next in that file. That's every screen in the app now checked this
+way at least once — the punch list below (in the separate step-by-step guide)
+is what's actually worth your time.
+
+Also worth knowing: I couldn't reach your computer overnight (the connection
+between us dropped), so nothing new was written to your files in this pass —
+just documentation updates here and in `docs/ARCHITECTURE.md`/`TEST_RUN_GUIDE.md`,
+which I'll push over as soon as the connection's back.
+
+## Overnight wrap-up: went through everything else, nothing else was broken
+
+After the import fixes and the Customers rebuild below, I spent the rest of the
+session doing the closest thing to testing possible without being able to click
+through the app myself: read every remaining screen's actual code end to end —
+Goals, Projects, Content, Company Health, SOPs, Reviews, Marketing, Finance,
+Team — specifically hunting for the same kinds of mistakes that caused tonight's
+three real bugs (a permission check that doesn't match the database, a number
+that divides by zero, a cap that quietly hides data, a button that looks like it
+works but doesn't).
+
+Nothing turned up. Every screen's edit/delete permissions match the database
+exactly, every calculation already guards against the "no data yet" case
+instead of showing a misleading zero, and the one place someone could otherwise
+demote themselves out of being a founder by accident is blocked on the server,
+not just grayed out in the browser. I also checked every other place in the app
+that writes to the database the same way the customer-import bug did, and every
+other search box for the same kind of typed-input bug — both came back clean
+too.
+
+This isn't the same as you clicking through each screen yourself — that's still
+worth doing when you have time, per `TEST_RUN_GUIDE.md` — but it's the most
+thorough check possible while you were away, and it came back clean. Nothing
+new to report from this pass; the three bugs below are still the only real ones
+found tonight, and all three are already fixed.
+
 ## 2026-09-15: your real order history is in, and one thing needs your call
 
 You ran the actual import — nearly 7,000 orders covering April 2025 through

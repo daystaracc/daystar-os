@@ -29,65 +29,49 @@ Accounts: `kaistarkai77@gmail.com` (KAi, founder) · `lucasmccollister@gmail.com
 
 | Area | State |
 |---|---|
-| Auth, middleware route protection, app shell, role-based nav | done |
+| Auth, middleware route protection, app shell, role-based nav | code-reviewed clean (2026-09-16) — `middleware.ts` matches the standard Supabase SSR pattern, no issues found |
 | i18n EN ↔ 繁中, key parity enforced by test, `localizedField()` for `*_zh` columns | done |
-| Command Center `/overview` | done |
-| My Work `/my-work` (member home) | done |
-| Tasks `/tasks` — list · kanban (drag-drop) · calendar, full CRUD, recurrence, filters, detail panel | done |
+| Command Center `/overview` | typechecks clean (2026-09-13), code-reviewed clean (2026-09-16) — live-verified informally (it's the page everyone lands on and has been open all session), but never through the same click-test discipline as the newer screens |
+| My Work `/my-work` (member home) | typechecks clean (2026-09-13), code-reviewed clean (2026-09-16) |
+| Tasks `/tasks` — list · kanban (drag-drop) · calendar, full CRUD, recurrence, filters, detail panel | typechecks clean (2026-09-13), code-reviewed clean (2026-09-16) — one real bug found and fixed (§ below); everything else checked out |
 | Revenue `/revenue` — KPI cards, period switcher (today/7d/30d/month/quarter/year), table of `sales_daily` entries, add/edit/delete drawer | **live-verified 2026-09-15** — real order history imported (6,772 orders), numbers match the pre-verified parse |
 | Revenue order-import wizard `/revenue/import` — Showmore order CSV → preview (diffed new/changed/unchanged) → confirm | **live-verified 2026-09-15** — see above; hit and fixed a real body-size-limit bug along the way (§ below) |
-| Projects `/projects` — list (health/status/progress/owner/deadline), detail page (progress, stats, notes, linked tasks, members), create/edit drawer, member add/remove | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Goals `/goals` — goals → objectives → key results (OKR hierarchy), grouped list by level, detail page with inline key-result progress updates, create/edit/delete at all three levels | typechecks clean (2026-09-14 full run) — not yet click-tested |
+| Projects `/projects` — list (health/status/progress/owner/deadline), detail page (progress, stats, notes, linked tasks, members), create/edit drawer, member add/remove | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Goals `/goals` — goals → objectives → key results (OKR hierarchy), grouped list by level, detail page with inline key-result progress updates, create/edit/delete at all three levels | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
 | Products `/products` — catalogue list (tier/status/stock/margin), detail page with variants, per-variant stock counting, create/edit/delete | **live-verified 2026-09-14** — real catalogue imported (102 products, 321 variants); code-reviewed 2026-09-15 to confirm no stale-seed assumptions |
 | Inventory `/inventory` — read-only dashboard: valuation, stock-status breakdown, reorder-needed list linking into Products | **live-verified 2026-09-14** (see Products above) — reads the same real `inventory` rows, no caps |
-| Content `/content` — flat pipeline list (idea → … → published), weekly publishing-pace card, create/edit/delete | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Company health `/company/health` — 11 fixed systems scorecard (score, owner, bottleneck, next action, score history), edit-only | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| SOPs `/sops` — document library across 11 fixed categories, list + detail page, hand-versioned | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Reviews `/reviews` — weekly/monthly WBR/MBR: create by period, wins/problems/decisions/priorities, manual metrics log grouped by section, mark complete/reopen, list + detail page | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Marketing `/marketing` — Campaigns / Ad spend / Creators in one tabbed screen (`?tab=`); campaign daily metrics, ad spend log with real ROAS/CAC/CPM/CTR/CVR, creator roster with a manual content/sales log | typechecks clean (2026-09-14 full run) — not yet click-tested |
+| Content `/content` — flat pipeline list (idea → … → published), weekly publishing-pace card, create/edit/delete, optional **campaign link** (added 2026-09-16) | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Company health `/company/health` — 11 fixed systems scorecard (score, owner, bottleneck, next action, score history), edit-only | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| SOPs `/sops` — document library across 11 fixed categories, list + detail page, hand-versioned | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Reviews `/reviews` — weekly/monthly WBR/MBR: create by period, wins/problems/decisions/priorities, manual metrics log grouped by section, mark complete/reopen, list + detail page | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Marketing `/marketing` — Campaigns / Ad spend / Creators in one tabbed screen (`?tab=`); campaign daily metrics, ad spend log with real ROAS/CAC/CPM/CTR/CVR/**MER** (added 2026-09-16), creator roster with a manual content/sales log | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
 | CRM `/crm` — Flows (12 fixed automations) / Monthly metrics / Customers in one tabbed screen; founder-only | **live-verified 2026-09-15** — 5,404 real customers imported; Customers tab rebuilt with pagination + search (was hard-capped at top 200, see below) |
-| Finance `/finance` — Monthly management P&L / Expenses in one tabbed screen; founder-only, contribution-margin math | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Team `/team` — directory + live workload (open/overdue task counts) for every active member; edit-only, founder-only writes, open to all for read | typechecks clean (2026-09-14 full run) — not yet click-tested |
+| Finance `/finance` — Monthly management P&L / Expenses in one tabbed screen; founder-only, contribution-margin math | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Team `/team` — directory + live workload (open/overdue task counts) for every active member; edit-only, founder-only writes, open to all for read | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
 | Settings `/settings` — organization info + data/import hub | **new 2026-09-15** — this page didn't exist; the sidebar link 404'd for every founder until now. See below |
 | Customer import — `/revenue/import` now also populates `customers` from the same file, phone numbers hashed and never stored | **live-verified 2026-09-15** — see Revenue above; hit and fixed a real `ON CONFLICT` bug in migration `0008` (§ below, fixed by `0009`) |
-| Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | typechecks clean (2026-09-14 full run) — not yet click-tested |
-| Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | typechecks clean (2026-09-14 full run) — not yet click-tested. Table has no populate path yet (no fan-out/cron) |
+| Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested |
+| Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested. Table has no populate path yet (no fan-out/cron) |
+| Operations `/operations` — **new 2026-09-21**: Daily log (`operations_daily`, upsert-by-day) / CS cases (`customer_service_cases`, full CRUD with status workflow) in one tabbed screen (`?tab=daily` / `?tab=cs`). See § below — this page didn't exist; the sidebar link 404'd since the app's first session |
 
-> **⚠ Decision needed from Lucas — do not build until he confirms (flagged 2026-09-15):**
-> While walking through the first live customer import, Lucas asked for the CRM
-> Customers screen to show "full info, emails phone number etc." for all 5,404
-> customers. Nothing was built for raw phone/email capture — this is flagged, not
-> silently implemented, because it's a direct reversal of a deliberate,
-> already-built privacy decision, not just a UI gap:
->
-> - `lib/import/showmore.ts`'s `CUSTOMER_COLUMNS` comment says plainly: *"Never
->   read into the application — DAYSTAR does not store customer personal data."*
-> - The entire phone-hash system (migrations `0008`/`0009`, `customerHash.server.ts`,
->   HMAC-SHA256 keyed by a server-only secret) exists specifically so a repeat
->   customer can be detected **without ever storing the real phone number** —
->   Lucas approved that exact design on 2026-09-14 ("standard salted hash is
->   fine"). Reading `訂購人電話`/`收件人 Email` into `customers.phone`/`customers.email`
->   for real would undo that, for all 5,404 people in the file, not just new ones.
-> - There's also a live-business angle, not just a code one: Taiwan's Personal
->   Data Protection Act (PDPA) puts real obligations on a business that collects
->   and stores customers' phone numbers and emails (purpose notice, security
->   measures, breach handling) — worth Lucas weighing that against what he
->   actually needs the info *for*, rather than defaulting to "store everything."
->
-> **Options for Lucas to pick from, not yet built:**
-> 1. **Keep hash-only.** `customers.phone`/`.email` stay reserved for manual entry
->    only (already the case — CRM now shows them when present). Nothing changes.
-> 2. **Capture email only.** Lower-risk than phone — no hashing system exists for
->    it either way, and it's the more normal thing for a CRM to hold. Would mean
->    reading `收件人 Email` in `customerAggregation.ts` and writing it alongside
->    name.
-> 3. **Capture real phone too**, reversing the 0008/0009 design outright — needs
->    Lucas to explicitly say so, since it's the opposite of what he approved a day
->    earlier, and it's the one with the actual PDPA exposure.
->
-> Whatever he picks, the fix is small (a couple of new fields threaded through
-> `customerAggregation.ts` → `importShowmoreCustomers` → the `customers` upsert)
-> — the point of flagging it is the decision, not the difficulty.
+> **✅ Decision made 2026-09-16: email only, not phone.** Asked directly ("email
+> only" / "add phone + email" / "keep as-is"), Lucas picked **email only**.
+> Built same day — `lib/import/customerAggregation.ts` now also reads `收件人
+> Email` (the one other exception to `CUSTOMER_COLUMNS` never being read,
+> alongside the already-existing phone-hash exception), stores it **as real,
+> readable text** (not hashed, unlike phone — that's the whole point of the
+> decision), and takes the most-recent-order's value the same way `name`
+> already did. `importShowmoreCustomers` (`app/(app)/revenue/import/actions.ts`)
+> now writes it to `customers.email` on every import. Phone stays exactly as it
+> was — hash-only, never the real number; that part of the original design was
+> explicitly NOT reversed. 4 new tests added for the email path (latest-order-
+> wins, missing-column doesn't warn since email isn't the identity key,
+> no-email-anywhere stays null) — same verification method as everything else
+> in this sandbox (parses clean via `tsx`, and unlike most other changes this
+> one was also actually *run* end-to-end with synthetic data via a throwaway
+> script, not just parsed, since a real `node:crypto`-shaped identity/hash flow
+> was worth exercising rather than only reading). Not yet click-tested against
+> Lucas's live database (needs a real import re-run once he's deployed).
 
 **Every screen in the sidebar now resolves — nothing 404s any more** (2026-09-15:
 this was actually false until today — `/settings` had linked from the sidebar
@@ -96,8 +80,29 @@ dead top-bar controls (search, the bell) both go somewhere real.**
 `npm run typecheck` is clean, the product import and the full order/customer
 import have both run successfully against Lucas's real data (§ below). What's
 left: click-testing the screens still marked "typechecks clean, not yet
-click-tested" in the table above, and the phone/email PII decision flagged
-just above — nothing else is currently blocked on Lucas.
+click-tested" in the table above — nothing else is currently blocked on Lucas.
+
+**2026-09-16: the whole build was never in git until today, and the first
+`git push` since didn't reach GitHub.** `git status` on Lucas's machine showed
+every screen from this entire session (everything from Revenue through
+Settings/Notifications) as uncommitted or untracked — the live site at
+daystar-os.vercel.app had been running a much older version this whole time,
+unrelated to any of the individual bugs described elsewhere on this page.
+Lucas committed everything in one shot (commit `c96460c`, 142 files, 15,588
+insertions) — `git config` already has the correct commit-author email
+(`325529981+daystaracc@users.noreply.github.com`), so that known Vercel
+Hobby-plan gotcha is not the issue here. He ran `git push` but had to step
+away before it finished; checking `.git/refs/remotes/origin/main` afterward
+shows it's still pointing at the old commit (`52a316e`), not `c96460c` — **the
+push did not reach GitHub, so the live site is still not updated.** Most
+likely explanation (unconfirmed — this session has no shell access to see the
+terminal output): the repo's remote is `https://github.com/...` (HTTPS, per
+`.git/config`), and a `git push` over HTTPS on Windows commonly pops up a Git
+Credential Manager sign-in window the first time — if that appeared right as
+Lucas had to leave, the push would just be sitting there waiting for it,
+not failed outright. **Next step for Lucas:** re-run `git push` from the
+`daystar-os` folder; if a sign-in window appears, complete it. If it fails
+with an actual error instead, paste the error.
 
 **2026-09-13: the first real `npm run typecheck` against this code.** Every screen
 above was written by hand in a sandbox with no npm registry access, so until today
@@ -142,7 +147,8 @@ below). Finance added none either — it's the first real caller of
 `contributionMargin()`, already written and tested when the calculation layer was
 built (see the Finance verification note below). Team added none either — its
 workload counts are a plain JS reduce over already-fetched task rows (same shape
-as Marketing/CRM's totals), not a new calculation-layer function. Re-ran the full
+as Marketing/CRM's totals), not a new calculation-layer function. **Marketing's MER
+was built 2026-09-16** — see the dedicated note below the "Traps" list. Re-ran the full
 suite after each addition. Keep it green; it is the only automated gate.
 
 **A note on how the Revenue screen was verified.** It was built in a sandbox with no
@@ -563,6 +569,70 @@ exposed as editable fields that would look functional but silently do nothing;
 UI. New `can.viewSettings` in `lib/permissions.ts`, same founder-only shape as
 `viewFinance`/`viewCRM`.
 
+**2026-09-16: audited Tasks, My Work, Command Center, and auth/middleware — the
+earliest-built screens, from before this session's close-review discipline
+existed. One real bug found and fixed; one latent (currently harmless) gap
+documented; one cosmetic non-issue noted.**
+
+1. **Fixed:** `completeTask` (`app/(app)/tasks/actions.ts`) spawns a recurring
+   task's next occurrence via a second `insert`, but discarded that insert's
+   result entirely — if it failed (any constraint violation), the task would
+   still show as completed with no trace anywhere that its recurrence had
+   silently stopped. Now logs the error server-side (`console.error`) when
+   this happens. Didn't widen `ActionResult`'s error union to surface it in
+   the UI itself — that's a bigger, app-wide change than this specific fix
+   warrants; worth doing later if this ever actually fires in practice.
+2. **Documented, not fixed (currently harmless):** `canEditTask`
+   (`lib/permissions.ts`) claims to mirror `tasks_update` RLS but is missing
+   one branch — RLS also allows anyone in the `task_assignees` junction table
+   (`is_task_assignee(id)`) to edit a task, a multi-assignee capability that
+   exists in the schema (migration 0001) but has no UI anywhere in this app
+   (`lib/data/tasks.ts` doesn't even select from `task_assignees`). Since
+   nothing ever writes to that table, it's always empty, so `canEditTask`'s
+   answer matches RLS for every task that exists today — but it would stop
+   matching the moment multi-assignee writes were ever added without also
+   updating this function. Comment corrected to say so precisely.
+3. **Not a bug, just a note:** the recurring-task rule string (e.g.
+   `weekly:MON`) looks like it should drive which weekday a task repeats on,
+   and `TaskDrawer.tsx`'s dropdown only ever offers `weekly:MON` regardless of
+   the task's actual due date — but `recurrence.ts`'s `nextOccurrence` never
+   actually reads the day suffix for `weekly:*`, it just adds 7 days to the
+   existing due date (so the real weekday is always whatever the due date
+   already was, correctly). The label is inert — cosmetically it can say
+   "MON" for a task due on a Tuesday, but nothing computes anything wrong
+   from that mismatch. Not worth fixing on its own.
+
+Auth/middleware (`src/middleware.ts`) was also read closely — standard
+Supabase SSR session-refresh-and-redirect pattern, nothing found.
+
+**2026-09-16: code-level review of the two remaining unreviewed screens, both
+clean.** Global search (`lib/search/actions.ts`, `CommandPalette.tsx`) and
+Notifications (`lib/data/notifications.ts`, the `/notifications` page, its
+`NotificationsList` component, and `notifications/actions.ts`) were the only
+two screens left from the 2026-09-14 build that hadn't had the same
+permission-vs-RLS/edge-case pass the other eleven got on 2026-09-15. Checked:
+`notifications_select`/`_update` RLS (`0002_rls.sql`) is recipient-only and
+matches every query and update in the app exactly (all scoped with an explicit
+redundant `.eq('recipient_id', ...)`, same defense-in-depth convention used
+everywhere else); there is no insert policy and the app never attempts one,
+consistent with "populate path is a separate fan-out/cron concern, not built
+this pass"; the unread badge in `TopBar.tsx` and the list's own unread count
+in `NotificationsList.tsx` both derive from the same `read_at is null` shape,
+so they can't drift out of sync with each other. Global search's RLS-inherits-
+automatically design (no app-level role gate, relies entirely on each queried
+table's own `*_select` policy) checked out against all six searched tables
+(tasks/projects/goals/products/content/sops). One minor, very-low-severity
+nitpick found and worth a one-line fix whenever someone's next in this file:
+`globalSearchEntities`'s `like` escaping (`lib/search/actions.ts`) only escapes
+literal `%`/`_` in the query, not a literal backslash — `crm.ts`'s
+`sanitizeSearchTerm` (built 2026-09-15) escapes all three. In practice this
+only affects search relevance if someone's task/project/goal/product/content/SOP
+title is searched using a query containing a literal backslash character,
+which doesn't come up in normal use — not a security issue (RLS still scopes
+every result), not fixed proactively since it's cosmetic and unrelated to
+tonight's actual ask. No new bugs. This closes out the full screen-by-screen
+code review — every screen in the app has now had this pass at least once.
+
 **2026-09-14: global search (⌘K) and `/notifications` are both built** — the two
 items flagged "being worked on now" in `TEST_RUN_GUIDE.md`. Both were previously
 dead: the top bar's search button and `⌘K` fired a `daystar:open-search` DOM event
@@ -897,16 +967,15 @@ file parses to exactly 320 rows / 102 products. This parser still needs writing 
    for customer import (step 6) so `customers` can finally be populated. Content's
    calendar/kanban views (spec §07) are a reasonable follow-up once the current
    flat-list version has been click-tested — see the scope note under "Built and
-   verified" above. Reviews' automatic metric pre-fill, Marketing's MER figure,
-   and CRM's `customers`/monthly-metrics automation (see all three verification
-   notes above, plus Finance's and Team's) are reasonable follow-ups once Lucas
-   has decided which numbers belong in the review, the phone-hashing approach for
-   customer import, and now that Finance actually exists to cross-reference
-   against (MER needs `sales_daily`'s total revenue over the same window as
-   `ad_spend_daily` — that cross-reference itself is still unbuilt, deliberately,
-   same reasoning as before) — likely worth doing together as one pass, once
-   Lucas has clicked through the new screens and confirmed they behave as
-   expected against a live database.
+   verified" above. Reviews' automatic metric pre-fill and CRM's
+   `customers`/monthly-metrics automation (see both verification notes above, plus
+   Finance's and Team's) are reasonable follow-ups once Lucas has decided which
+   numbers belong in the review and the phone-hashing approach for customer
+   import — likely worth doing together as one pass, once Lucas has clicked
+   through the new screens and confirmed they behave as expected against a live
+   database. Marketing's MER figure (previously listed here as blocked on Finance
+   existing to cross-reference against) was built 2026-09-16 — see the dedicated
+   note below the "Traps" list.
 
 ### Traps that cost time in earlier sessions
 
@@ -952,6 +1021,165 @@ file parses to exactly 320 rows / 102 products. This parser still needs writing 
   checked every other `.or()` filter for the same raw-user-input risk `crm.ts`'s search
   box needed sanitizing against — the only other two (`tasks.ts`) are built from
   server-computed dates, not free text, so they're not exposed the same way.
+- 2026-09-17 audit, one real gap found and fixed: every `z.string()`/`z.array()` in
+  every `actions.ts` in the app was checked for a `.max()` bound (the discipline the
+  body-size-limit trap above exists to protect). Every `z.array()` already had one
+  (`tasks.ts`'s `labels`/`checklist`/`dependsOn`). Exactly one unbounded field existed:
+  `product_variants.attributes`, a `z.record(z.string(), z.string())` with no key
+  length, value length, or entry-count limit — the one exception in an otherwise
+  consistently-bounded codebase. Fixed same day, see the dedicated note below.
+
+**Marketing → Revenue MER connection (built 2026-09-16).** `adMetrics()` in
+`lib/calculations/finance.ts` already accepted an optional `totalRevenue` param and
+computed `mer` from it — only the data layer was never wired to supply it, so `mer`
+was always `null` and the Ad spend tab showed a permanent "not shown yet" note
+instead. `getAdSpendPage()` (`lib/data/marketing.ts`) now fetches `v_sales_daily_total`
+(gross revenue, grouped by date) in parallel with `ad_spend_daily`, over the same
+rolling window and same `asOf` cutoff the page already uses for ad spend, sums it with
+the same `sumRevenue()` helper Revenue/Command Center use (so "total revenue" means
+exactly the same thing here as on the Revenue screen — gross, not net), and passes it
+into `adMetrics()`. `sales_daily_select` RLS is manager-or-above, the same gate as
+`ad_spend_daily` and the whole Marketing screen (`can.viewMarketing`), so nothing new
+is reachable by a role that couldn't already see both tables. If the revenue query
+fails, `mer` degrades to `null` rather than failing the whole ad-spend page or showing
+a number computed from partial data — same "missing is not zero" discipline as every
+other calculation in this app. UI: added an `MER` KPI tile to the Ad spend tab
+(`app/(app)/marketing/page.tsx`); the `merNote` string is now shown only when `mer` is
+still `null` (i.e. the revenue query failed), not unconditionally — its copy changed
+from "isn't shown yet" to reflect that it's a fallback, not the default state. Updated
+both `en.ts` and `zh-Hant.ts`. Verified by this sandbox's standard parse-check
+convention (fails only at the first unresolvable external import) on all four changed
+files; **not yet click-tested against live data** — same caveat as the rest of
+Marketing.
+
+**Content → Campaign link (built 2026-09-16).** `content.campaign_id` has existed in
+the schema since the original migration (creator/content tied to a specific paid
+push), but nothing in the app ever read or wrote it — Content and Marketing existed as
+two disconnected screens despite the schema already linking them. Wired up the same
+way `product_id` already works on this screen: `getContentOptions()`
+(`lib/data/content.ts`) now also fetches the org's campaigns (`id, name`) for a
+dropdown; `getContentPage()`'s `SELECT` and row mapping carry `campaign` the same way
+they carry `product`; `createContent`/`updateContent`
+(`app/(app)/content/actions.ts`) accept an optional `campaign_id`; `ContentDrawer.tsx`
+gets a Campaign select in the Advanced section (next to Talent/Hook). `campaigns` RLS
+is the generic per-table shape (select = any active member, same as `content_select`),
+so nothing new is reachable by a role that couldn't already see both screens
+individually. Optional in both create and edit, same as `product_id` — most content
+has no paid campaign behind it. Added `content.campaign`/`content.noCampaign` to both
+`en.ts` and `zh-Hant.ts`. The reverse direction (showing linked content on a
+campaign's own detail page) was scoped out of this first pass to keep the change
+small — then built later the same day (see the note directly below). CRM's
+monthly-metrics automation looked like a similar "wire up an existing column" job but
+turned out not to be — see the corrected doc comment in `lib/data/crm.ts`
+(2026-09-16): `customers` only stores per-customer totals, not per-order rows, so the
+actual blocker is a schema decision, not a wiring gap, and needs Lucas's input before
+touching production data. Verified by the sandbox's parse-check convention on all six
+changed files, plus a full re-run of the automated test suite (still 74/74, unrelated
+to these files but confirms no collateral breakage); **not yet click-tested against
+live data.**
+
+**Campaign detail → linked content (built 2026-09-16, later the same day).** The
+other half of the Content ↔ Campaign link above: `getCampaignDetail()`
+(`lib/data/marketing.ts`) now also fetches every `content` row with a matching
+`campaign_id`, and the campaign detail page
+(`app/(app)/marketing/campaigns/[id]/page.tsx`) lists them (title, status, publish
+date) below the daily-metrics card, each linking to `/content?edit=<id>` to open that
+piece directly in its edit drawer. Pure rollup, not a new permission surface:
+`content_select` RLS is any active org member, a strict superset of who can even
+reach this founder/manager-gated page (`can.viewMarketing`), and a `campaign_id` only
+ever matches content already in the same org (it references `campaigns(id)`, itself
+org-scoped) — so no extra `organization_id` filter was needed on the content query.
+The edit-drawer link relies on `canEditContent` always returning true for
+founder/manager, which it does, so nobody who can reach this page ever hits a link
+that fails to open the drawer. Added `marketing.linkedContent`/`linkedContentEmpty`
+to both locales. Verified the same way as everything else this session: parse-check
+clean on all four changed files, full test suite re-run clean (74/74).
+
+**Product variant `attributes` bounded (built 2026-09-17).** Found via a systematic
+sweep of every `z.string()`/`z.array()`/`z.record()` across every `actions.ts` in the
+app, checking each against the body-size-limit trap noted above: `product_variants
+.attributes` (`app/(app)/products/actions.ts`) was `z.record(z.string(), z.string())`
+with no bound on key length, value length, or entry count — the only such gap found;
+every `z.array()` elsewhere already had a `.max()` (e.g. `tasks.ts`'s
+`labels`/`checklist`/`dependsOn`). Real-world risk was low — manager-or-above only,
+fed from one plain-text input in `VariantDrawer.tsx` that parses `"key: value, key:
+value"` pairs — but it was the one unbounded free-text field in an otherwise
+consistently-bounded codebase, so worth closing. New `attributesSchema`: keys ≤50
+chars, values ≤200 chars, ≤20 entries — comfortably covers real variant dimensions
+(size, color, material) with room to spare. Also added `maxLength={500}` to the
+underlying `<input>` as a client-side safety net. Verified two ways: the usual
+parse-check, plus — new this session — actually *running* the schema against six
+cases (valid, empty, too-many-entries, key-too-long, value-too-long, empty-value) via
+a real `zod` install borrowed from another tool already present in this sandbox
+(`@mermaid-js/mermaid-cli`'s bundled copy, v3.25.76 vs. the app's `^3.24.0` — close
+enough to trust the behavior), all six behaving as intended. Full test suite re-run
+clean (74/74) after the change.
+
+**Follow-up: client-side length bounds on free-text inputs (built 2026-09-17).**
+Same day, broadened the sweep above from "does the server-side schema have a
+`.max()`" to "does the `<input>`/`<textarea>` itself have a matching `maxLength`" —
+every `*Drawer.tsx` already did except two spots in `TaskDrawer.tsx`
+(labels/checklist), plus two search boxes that had no length bound at either layer:
+CRM's customer search (`app/(app)/crm/page.tsx` + `lib/data/crm.ts`) and the ⌘K
+command palette (`components/layout/CommandPalette.tsx` +
+`lib/search/actions.ts`). Both search functions now cap the query at 200 chars
+server-side before use (`MAX_SEARCH_LEN` in `crm.ts`; inline in `search/actions.ts`)
+in addition to the new `maxLength={200}` on their inputs — no real search term is
+anywhere near that long, so this only ever trims a pathological input. CRM's is the
+higher-stakes one (the term is spliced into an `.or()` filter string, same file
+that already had comma/paren sanitizing); the command palette's `.ilike()` calls are
+parameterized by postgrest-js regardless, so it's a bandwidth/consistency guard, not
+a correctness fix. Also added `maxLength` to `TaskDrawer.tsx`'s label list (1000 —
+sized for up to 20 comma-separated 40-char labels, the server's own cap) and
+checklist-item drafts (200, matching `addChecklistItem`'s schema), and to
+`TaskPanel.tsx`'s shared `AddLine` component (now takes an optional `maxLength`
+prop; 200 for checklist items, 4000 for comments, matching `addComment`'s schema —
+both already server-bounded, this closes the client-side gap only). Verified: parse-
+check clean on all six files, full test suite re-run clean (74/74).
+
+**Operations screen built (2026-09-21).** Lucas reported item #12 in the sidebar
+(`Operations`, `/operations`) as a 404. Investigation: the nav entry, i18n label,
+and both backing tables (`operations_daily`, `customer_service_cases`) have existed
+since migration `0001` — RLS for both was already live too (generic loop, migration
+`0002`: select = any active member, insert/update = manager-or-above, delete =
+founder-only) — but no route, data layer, or actions were ever built. The Command
+Center's attention rules (`lib/calculations/rules.ts`) already linked here for
+stale CS cases and orders-waiting, so this was a real, long-standing gap, not a
+new feature invented from scratch.
+
+Built: `lib/operations/constants.ts` (enums, `ActionResult`), `lib/data/operations.ts`
+(`getOperationsDailyPage` — 30-day rolling window + today's snapshot + window
+averages, "missing is not zero" for `avgFulfillmentMinutes`; `getCsCasesPage` —
+open/waiting cases sorted first), `app/(app)/operations/actions.ts` (`upsertOperationsDaily`
+— upsert by day, same idiom as Finance's monthly P&L; `createCsCase`/`updateCsCase`
+— status changes stamp `resolved_at` server-side, never trusting a client
+timestamp; `deleteOperationsDaily`/`deleteCsCase` — founder-only), two drawers, and
+`app/(app)/operations/page.tsx` — two tabs, `?tab=daily` (default) and `?tab=cs`.
+**The `cs` tab key is load-bearing**, not arbitrary: `rules.ts`'s `cs_stale` rule
+already hardcodes `href: '/operations?tab=cs'` — got this right by checking that
+file before naming the tabs, not after.
+
+Permission shape: open to any active member (matches the nav item having no
+`roles` restriction, and matches `*_select` RLS); creating/editing is gated to
+manager-or-above in the UI (`canManage`, mirroring `*_insert`/`*_update` RLS) —
+members can view both tabs' KPIs and lists but rows render as plain non-interactive
+divs instead of edit links, rather than linking to a drawer that would just reject
+them. i18n added for both languages (`operations` block in `en.ts`/`zh-Hant.ts`).
+Verified via this sandbox's standard `tsx --eval` parse-check (all six new/changed
+files resolve cleanly up to the expected external-package boundary) — full `tsc`
+isn't runnable here (`node_modules` isn't installed in this sandbox), so this is
+the same verification ceiling every other screen in this table has been built
+under, not a lower bar applied only to this one.
+
+Lucas separately asked for automatic order ingestion from Showmore, 蝦皮 (Shopee),
+and future platforms. Flagged to him directly rather than silently built: this is
+a webhook-integration project (each platform pushing order events to an endpoint
+this app would need to expose and authenticate), not a data-model gap like
+Operations was — `sales_channels`/`sales_daily`/`product_sales_daily` already
+model multi-channel data, but nothing today writes to them except the manual
+Revenue entry form and the one-time Showmore CSV import wizard. Needs platform API
+credentials/webhook setup from Lucas before real work can start; not something to
+build speculatively without that.
 
 ---
 

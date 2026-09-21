@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { normalizePhone, extractCustomerOrders, aggregateCustomers } from '../customerAggregation';
 import { hashPhone } from '../customerHash.server';
 
-const HEADER = ['訂單編號', '訂單狀態', '訂購人', '訂購人電話', '總額', '付款時間'];
+const HEADER = ['訂單編號', '訂單狀態', '訂購人', '訂購人電話', '收件人 Email', '總額', '付款時間'];
 const row = (o: Partial<Record<string, unknown>>) => HEADER.map(h => o[h] ?? null);
 const SALT = 'test-salt';
 // `extractCustomerOrders` takes a hash function, not a salt (see the 2026-09-15
@@ -106,6 +106,35 @@ test('aggregateCustomers: a returned order still counts toward total_spent, same
   const customers = aggregateCustomers(orders);
   assert.equal(customers.length, 1);
   assert.equal(customers[0].totalSpent, 500);
+});
+
+test('aggregateCustomers: email takes the most recent order\'s value, same "latest wins" rule as name', () => {
+  const { orders } = extractCustomerOrders([
+    HEADER,
+    row({ 訂單編號: '1', 訂單狀態: '已完成', 訂購人: 'Amy', 訂購人電話: '0912345678', '收件人 Email': 'old@example.com', 總額: 500, 付款時間: '2026/08/01' }),
+    row({ 訂單編號: '2', 訂單狀態: '已完成', 訂購人: 'Amy', 訂購人電話: '0912345678', '收件人 Email': 'new@example.com', 總額: 300, 付款時間: '2026/09/01' }),
+  ], hash);
+  const customers = aggregateCustomers(orders);
+  assert.equal(customers.length, 1);
+  assert.equal(customers[0].email, 'new@example.com');
+});
+
+test('extractCustomerOrders: a missing 收件人 Email column is not warned about — unlike phone, it is not the identity key', () => {
+  const { orders, warnings } = extractCustomerOrders([
+    ['訂單編號', '訂單狀態', '訂購人電話', '總額', '付款時間'],
+    ['1', '已完成', '0912345678', '500', '2026/08/01'],
+  ], hash);
+  assert.equal(orders[0].email, null);
+  assert.ok(!warnings.some(w => w.includes('Email')));
+});
+
+test('aggregateCustomers: a customer with no email on any order stays null, not fabricated', () => {
+  const { orders } = extractCustomerOrders([
+    HEADER,
+    row({ 訂單編號: '1', 訂單狀態: '已完成', 訂購人: 'Bo', 訂購人電話: '0987654321', 總額: 200, 付款時間: '2026/08/15' }),
+  ], hash);
+  const customers = aggregateCustomers(orders);
+  assert.equal(customers[0].email, null);
 });
 
 test('aggregateCustomers: orders with no phone hash are excluded, not grouped into a fake bucket', () => {

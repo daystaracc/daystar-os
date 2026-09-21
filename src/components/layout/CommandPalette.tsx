@@ -103,6 +103,7 @@ export function CommandPalette({ role, nav, labels }: { role: Role; nav: Diction
             onChange={e => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
             placeholder={labels.placeholder}
+            maxLength={200}
             className="h-12 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-ink-3"
           />
         </div>

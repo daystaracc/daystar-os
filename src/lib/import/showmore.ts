@@ -33,7 +33,14 @@ export const COL = {
   discount: '折扣紀錄',
 } as const;
 
-/** Never read into the application — DAYSTAR does not store customer personal data. */
+/**
+ * Not read into the application, with two narrow, deliberate exceptions —
+ * 訂購人電話 (hashed immediately, never stored plain — see
+ * lib/import/customerAggregation.ts) and, as of 2026-09-16, 收件人 Email
+ * (stored plain, per Lucas's explicit "email only" decision, same file).
+ * Every other field below — address, bank account, gender, birthday,
+ * recipient name/phone — is still never read anywhere in this codebase.
+ */
 export const CUSTOMER_COLUMNS = [
   '訂購人', '訂購人性別', '訂購人生日', '訂購人電話',
   '收件人', '收件人市話', '收件人電話', '收件人 Email',

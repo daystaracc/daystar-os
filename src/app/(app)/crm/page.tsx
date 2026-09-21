@@ -157,7 +157,7 @@ async function CustomersTab({ orgId, t, q, page: pageNum }: { orgId: string; t: 
         <input type="hidden" name="tab" value="customers" />
         <div className="relative flex-1 max-w-sm">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
-          <input type="text" name="q" defaultValue={q} placeholder={t('crm.searchPlaceholder')}
+          <input type="text" name="q" maxLength={200} defaultValue={q} placeholder={t('crm.searchPlaceholder')}
             className="input w-full pl-8" />
         </div>
         {q && <Link href="?tab=customers" className="btn-ghost text-xs">{t('crm.clearSearch')}</Link>}

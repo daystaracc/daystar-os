@@ -142,7 +142,7 @@ async function AdSpendTab({ orgId, t, platformLabels, today }: {
 
   return (
     <div className="space-y-4">
-      <div className="card card-pad grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
+      <div className="card card-pad grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-8">
         <Kpi label={t('marketing.spend')} value={fmt(page.totals.spend)} />
         <Kpi label={t('marketing.revenue')} value={fmt(page.totals.revenue)} />
         <Kpi label={t('marketing.roas')} value={page.metrics.roas === null ? '—' : `${page.metrics.roas.toFixed(1)}x`} />
@@ -150,8 +150,9 @@ async function AdSpendTab({ orgId, t, platformLabels, today }: {
         <Kpi label={t('marketing.cpm')} value={page.metrics.cpm === null ? '—' : fmt(page.metrics.cpm)} />
         <Kpi label={t('marketing.ctr')} value={pct(page.metrics.ctr)} />
         <Kpi label={t('marketing.cvr')} value={pct(page.metrics.cvr)} />
+        <Kpi label={t('marketing.mer')} value={page.metrics.mer === null ? '—' : `${page.metrics.mer.toFixed(1)}x`} />
       </div>
-      <p className="text-xs text-ink-3">{t('marketing.merNote')}</p>
+      {page.metrics.mer === null && <p className="text-xs text-ink-3">{t('marketing.merNote')}</p>}
 
       {!page.rows.length ? (
         <div className="card card-pad text-sm text-ink-3">{t('marketing.adSpendEmpty')}</div>

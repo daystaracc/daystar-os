@@ -1,8 +1,9 @@
 import 'server-only';
 import { createClient } from '@/lib/supabase/server';
 import { shiftDays } from '@/lib/calculations/pacing';
-import { adMetrics } from '@/lib/calculations/finance';
+import { adMetrics, sumRevenue, type DailySales } from '@/lib/calculations/finance';
 import type { CampaignStatus, AdPlatform, CreatorPlatform, CreatorStatus } from '@/lib/marketing/constants';
+import type { ContentStatus } from '@/lib/content/constants';
 
 /**
  * MARKETING (spec §08) — "Is paid / creator spend working?"
@@ -49,10 +50,19 @@ export interface CampaignRow {
 
 export interface CampaignMetricRow { id: string; date: string; revenue: number; orders: number; spend: number }
 
+/** Added 2026-09-16 — the reverse direction of Content's `campaign_id` (see
+ * `lib/data/content.ts`'s doc comment on `getContentPage`, built the same day). A
+ * campaign has no owning relationship to content — any member with an active
+ * `content_select` row could already see every piece individually — so this is
+ * purely a convenience rollup for whoever's looking at the campaign, not a new
+ * permission surface. */
+export interface CampaignContentRow { id: string; title: string; status: ContentStatus; publishDate: string | null }
+
 export interface CampaignDetail extends CampaignRow {
   offer: string | null;
   notes: string | null;
   metrics: CampaignMetricRow[];
+  content: CampaignContentRow[];
 }
 
 export interface CampaignsPage { campaigns: CampaignRow[]; error: boolean }
@@ -97,15 +107,23 @@ export async function getCampaignDetail(orgId: string, campaignId: string): Prom
   const { data: c } = await sb.from('campaigns').select(CAMPAIGN_DETAIL_SELECT).eq('organization_id', orgId).eq('id', campaignId).maybeSingle();
   if (!c) return null;
 
-  const { data: metricsData } = await sb.from('campaign_metrics').select('id, date, revenue, orders, spend').eq('campaign_id', campaignId).order('date', { ascending: false });
+  const [{ data: metricsData }, { data: contentData }] = await Promise.all([
+    sb.from('campaign_metrics').select('id, date, revenue, orders, spend').eq('campaign_id', campaignId).order('date', { ascending: false }),
+    // `content_select` RLS: any active org member — a superset of who can even reach
+    // this founder/manager-gated page, so nothing here needs its own org_id filter
+    // beyond `campaign_id` (a campaign_id only ever matches content in its own org,
+    // since content.campaign_id references campaigns(id) and campaigns are org-scoped).
+    sb.from('content').select('id, title, status, publish_date').eq('campaign_id', campaignId).order('publish_date', { ascending: false, nullsFirst: false }),
+  ]);
   const metrics: CampaignMetricRow[] = (metricsData ?? []).map(m => ({ id: m.id, date: m.date, revenue: Number(m.revenue), orders: m.orders, spend: Number(m.spend) }));
   const totals = rollup(metrics);
+  const content: CampaignContentRow[] = (contentData ?? []).map(x => ({ id: x.id, title: x.title, status: x.status as ContentStatus, publishDate: x.publish_date }));
 
   return {
     id: c.id, name: c.name, objective: c.objective, status: c.status as CampaignStatus,
     startDate: c.start_date, endDate: c.end_date, budget: c.budget, offer: c.offer, notes: c.notes,
     revenue: totals.revenue, orders: totals.orders, spend: totals.spend, roas: safeRoas(totals.revenue, totals.spend),
-    metrics,
+    metrics, content,
   };
 }
 
@@ -132,18 +150,32 @@ const AD_SPEND_SELECT = 'id, date, platform, spend, revenue, impressions, clicks
 const AD_SPEND_WINDOW_DAYS = 90;
 
 /**
- * `mer` (spend as a share of *total store* revenue, not just attributed revenue) is
- * deliberately left null here — computing it needs the org's total revenue over the
- * same date window, which lives in `sales_daily` (the Revenue screen), and
- * cross-referencing the two screens' data is a reasonable follow-up once this
- * screen has been used for a bit, not something to wire up unattended on a first
- * pass. Every other figure `adMetrics()` returns (roas/cac/cpm/ctr/cpc/cvr/aov) only
- * needs this table's own columns and is computed for real below.
+ * `mer` (spend as a share of *total store* revenue, not just attributed revenue) —
+ * built 2026-09-16, per Lucas's explicit request, once Finance/Revenue had real
+ * live data to cross-reference. Needs the org's total gross revenue over the same
+ * rolling window this page already sums ad spend over, read from
+ * `v_sales_daily_total` (the same view Revenue and the Command Center read) and
+ * summed with the same `sumRevenue()` helper Revenue uses, so "total revenue" means
+ * exactly the same thing here as it does on the Revenue screen — gross, not net.
+ * `sales_daily_select` RLS is manager-or-above, same gate as `ad_spend_daily` and
+ * this whole screen (`can.viewMarketing`), so nothing here can be reached by a role
+ * that couldn't already see both underlying tables individually.
+ *
+ * If the revenue query itself fails, `mer` degrades to `null` (via `adMetrics`'s
+ * own `totalRevenue: undefined` path) rather than failing the whole ad-spend page
+ * or showing a wrong number computed from partial data — same "missing is not
+ * zero" discipline as every other calculation in this app. Every other figure
+ * `adMetrics()` returns (roas/cac/cpm/ctr/cpc/cvr/aov) only needs this table's own
+ * columns and was already computed for real before this change.
  */
 export async function getAdSpendPage(orgId: string, asOf = new Date().toISOString().slice(0, 10)): Promise<AdSpendPage> {
   const sb = await createClient();
   const since = shiftDays(asOf, -AD_SPEND_WINDOW_DAYS);
-  const { data, error } = await sb.from('ad_spend_daily').select(AD_SPEND_SELECT).eq('organization_id', orgId).gte('date', since).order('date', { ascending: false });
+  const [adSpendRes, revenueRes] = await Promise.all([
+    sb.from('ad_spend_daily').select(AD_SPEND_SELECT).eq('organization_id', orgId).gte('date', since).order('date', { ascending: false }),
+    sb.from('v_sales_daily_total').select('date, gross_revenue').eq('organization_id', orgId).gte('date', since).lte('date', asOf),
+  ]);
+  const { data, error } = adSpendRes;
   if (error) return { rows: [], totals: { spend: 0, revenue: 0, impressions: 0, clicks: 0, purchases: 0 }, metrics: adMetrics({ spend: 0, revenue: 0, impressions: 0, clicks: 0, purchases: 0 }), error: true };
 
   const rows: AdSpendRow[] = (data ?? []).map(r => ({
@@ -155,7 +187,15 @@ export async function getAdSpendPage(orgId: string, asOf = new Date().toISOStrin
     impressions: a.impressions + r.impressions, clicks: a.clicks + r.clicks, purchases: a.purchases + r.purchases,
   }), { spend: 0, revenue: 0, impressions: 0, clicks: 0, purchases: 0 });
 
-  return { rows, totals, metrics: adMetrics(totals), error: false };
+  const totalRevenue = revenueRes.error ? undefined : sumRevenue(toDailySales(revenueRes.data)).gross;
+
+  return { rows, totals, metrics: adMetrics(totals, totalRevenue), error: false };
+}
+
+/** `v_sales_daily_total` groups by date, so `date` is never null — the view type just cannot say so (same as `revenue.ts`/`commandCenter.ts`'s identical helper). */
+function toDailySales(rows: { date: string | null; gross_revenue: number | null }[] | null): DailySales[] {
+  return (rows ?? []).filter((r): r is typeof r & { date: string } => r.date !== null)
+    .map(r => ({ date: r.date, orders: 0, gross_revenue: Number(r.gross_revenue ?? 0) }));
 }
 
 // ---------------------------------------------------------------------------
