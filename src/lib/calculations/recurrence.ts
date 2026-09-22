@@ -20,7 +20,14 @@ export function nextOccurrence(due: string, rule: string): string | null {
   if (rule === 'monthly:last') return at(new Date(Date.UTC(y, m + 1, 0)));
   if (rule.startsWith('monthly:')) {
     const day = Number(rule.split(':')[1]) || 1;
-    return at(new Date(Date.UTC(y, m, day)));
+    // Date.UTC silently rolls a day that doesn't exist in the target month into the
+    // FOLLOWING month (e.g. day 31 in a 30-day month) — found 2026-09-21 while adding
+    // test coverage: "monthly:31" from 2026-01-31 landed on 2026-03-03, skipping
+    // February's occurrence entirely instead of landing in it. Clamp to the target
+    // month's real last day instead, same "day 0 of next month" trick monthly:last
+    // already uses above, so e.g. "the 31st" behaves like "the last day" in short months.
+    const daysInTargetMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return at(new Date(Date.UTC(y, m, Math.min(day, daysInTargetMonth))));
   }
   return null;
 }
