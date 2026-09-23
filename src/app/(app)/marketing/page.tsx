@@ -10,6 +10,7 @@ import { CAMPAIGN_STATUS, AD_PLATFORM, CREATOR_PLATFORM, CREATOR_STATUS } from '
 import { CampaignDrawer } from '@/components/marketing/CampaignDrawer';
 import { AdSpendDrawer } from '@/components/marketing/AdSpendDrawer';
 import { CreatorDrawer } from '@/components/marketing/CreatorDrawer';
+import { WebsiteTraffic } from '@/components/marketing/WebsiteTraffic';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,15 @@ export default async function MarketingPage({ searchParams }: { searchParams: Pr
         {tab === 'ad-spend' && <Link href="?tab=ad-spend&new=1" scroll={false} className="btn-primary"><Plus className="h-4 w-4" />{t('marketing.newAdSpend')}</Link>}
         {tab === 'creators' && <Link href="?tab=creators&new=1" scroll={false} className="btn-primary"><Plus className="h-4 w-4" />{t('marketing.newCreator')}</Link>}
       </header>
+
+      <WebsiteTraffic t={t} labels={{
+        heading: t('marketing.trafficHeading'), asOf: t('marketing.trafficAsOf'),
+        sessions: t('marketing.trafficSessions'), users: t('marketing.trafficUsers'), pageviews: t('marketing.trafficPageviews'),
+        avgDuration: t('marketing.trafficAvgDuration'), engagementRate: t('marketing.trafficEngagementRate'),
+        topPages: t('marketing.trafficTopPages'), trafficSources: t('marketing.trafficSources'),
+        noPages: t('marketing.trafficNoPages'), noSources: t('marketing.trafficNoSources'),
+        notConfigured: t('marketing.trafficNotConfigured'), loadFailed: t('marketing.trafficLoadFailed'),
+      }} />
 
       <div className="flex flex-wrap gap-1.5">
         <TabPill href="?tab=campaigns" active={tab === 'campaigns'} icon={<Megaphone className="h-3.5 w-3.5" />} label={t('marketing.tabCampaigns')} />
