@@ -298,6 +298,14 @@ export const zhHant: Dictionary = {
     contentLog: '內容紀錄', addContent: '新增內容', productsSent: '寄送商品', url: '連結', publishedAt: '發布日期',
     views: '觀看數', sales: '銷售額', contentEmpty: '尚未記錄任何內容。',
     deleteContentConfirm: '刪除這筆內容紀錄？此動作無法復原。',
+
+    trafficHeading: '網站流量', trafficAsOf: '資料日期',
+    trafficSessions: '工作階段', trafficUsers: '使用者', trafficPageviews: '瀏覽頁數',
+    trafficAvgDuration: '平均停留時間', trafficEngagementRate: '互動率', trafficVsYesterday: '較前一天',
+    trafficTopPages: '熱門頁面', trafficSources: '流量來源',
+    trafficNoPages: '尚無頁面資料。', trafficNoSources: '尚無來源資料。',
+    trafficNotConfigured: '尚未連接網站流量資料——需要先串接 Google Analytics。',
+    trafficLoadFailed: '無法載入網站流量資料。',
   },
   crm: {
     heading: '客戶關係', tabFlows: '自動化流程', tabMetrics: '每月指標', tabCustomers: '顧客',
