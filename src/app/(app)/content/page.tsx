@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, LayoutList, CalendarDays, KanbanSquare } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
 import type { Role } from '@/lib/permissions';
@@ -8,6 +8,8 @@ import { getContentPage } from '@/lib/data/content';
 import { CONTENT_TYPE, CONTENT_PLATFORM, CONTENT_STATUS, type ContentStatus } from '@/lib/content/constants';
 import { ContentDrawer } from '@/components/content/ContentDrawer';
 import { ContentStatusControl, EditContentLink, DeleteContentButton } from '@/components/content/ContentActions';
+import { ContentCalendar } from '@/components/content/ContentCalendar';
+import { ContentBoard } from '@/components/content/ContentBoard';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,14 +17,22 @@ type Search = Record<string, string | string[] | undefined>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const PACE_TONE = { ahead: 'pill-ok', on_pace: 'pill-ok', behind: 'pill-bad' } as const;
+const CONTENT_VIEWS = ['list', 'calendar', 'kanban'] as const;
+type ContentView = (typeof CONTENT_VIEWS)[number];
+const VIEW_ICON = { list: LayoutList, calendar: CalendarDays, kanban: KanbanSquare } as const;
 
 /**
  * CONTENT (spec §07 Content engine) — "Are we producing, what works?"
  *
- * A flat list sorted by pipeline stage, not the full drag-drop kanban / calendar the
- * spec describes (see ARCHITECTURE §0 for the scope note), plus the same weekly
- * publishing-pace figure the Command Center's "Content this week" card links here
- * from. `content_select` RLS: every active org member. Creating is open to any
+ * Three views over the same `getContentPage()` data: List (flat, sorted by pipeline
+ * stage — the original build), Calendar (by `publishDate`, undated pieces listed
+ * below the grid) and Kanban (by status, drag-and-drop with a <select> fallback —
+ * mirrors TaskBoard.tsx/TaskCalendar.tsx). The active view, and for Calendar the
+ * displayed month, are both URL state (`?view=`, `?month=`) — same principle as
+ * Tasks (see tasks/page.tsx) — so `getContentPage` itself stays view-agnostic and
+ * unchanged; only this page and the two new view components are new. Plus the same
+ * weekly publishing-pace figure the Command Center's "Content this week" card links
+ * here from. `content_select` RLS: every active org member. Creating is open to any
  * member (`content_insert`); editing is manager-or-above or whoever owns/created a
  * piece (`content_update` — mirrored by `canEditContent` in lib/permissions.ts);
  * deleting is manager-or-above only, no owner exception (`content_delete`).
@@ -43,23 +53,33 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
 
   const page = await getContentPage(m.organization_id, role, user.id, locale);
 
+  const view = (CONTENT_VIEWS as readonly string[]).includes(first(sp.view) ?? '') ? (first(sp.view) as ContentView) : 'list';
+  const asOfToday = new Date().toISOString().slice(0, 10);
+  const month = view === 'calendar' ? (first(sp.month)?.match(/^\d{4}-\d{2}$/) ? first(sp.month)! : asOfToday.slice(0, 7)) : undefined;
+
   const statusFilter = (CONTENT_STATUS as readonly string[]).includes(first(sp.status) ?? '') ? (first(sp.status) as ContentStatus) : undefined;
   const items = statusFilter ? page.items.filter(c => c.status === statusFilter) : page.items;
 
   const editId = first(sp.edit);
   const editing = editId ? page.items.find(c => c.id === editId && c.canEdit) : undefined;
   const drawerOpen = first(sp.new) === '1' || !!editing;
+  // Calendar/Kanban aren't URL-filterable like List, so the drawer's close link and the
+  // header's "new" link carry `view`/`month` explicitly to stay on the same view — List
+  // keeps its exact original hrefs (`/content`, `?new=1`), unchanged.
+  const closeHref = view === 'calendar' ? `/content?view=calendar&month=${month}` : view === 'kanban' ? '/content?view=kanban' : '/content';
+  const newHref = view === 'calendar' ? `?view=calendar&month=${month}&new=1` : view === 'kanban' ? '?view=kanban&new=1' : '?new=1';
 
   const typeLabels = Object.fromEntries(CONTENT_TYPE.map(x => [x, t(`content.type_.${x}`)])) as Record<(typeof CONTENT_TYPE)[number], string>;
   const platformLabels = Object.fromEntries(CONTENT_PLATFORM.map(x => [x, t(`content.platform_.${x}`)])) as Record<(typeof CONTENT_PLATFORM)[number], string>;
   const statusLabels = Object.fromEntries(CONTENT_STATUS.map(x => [x, t(`content.status_.${x}`)])) as Record<(typeof CONTENT_STATUS)[number], string>;
   const actionsLabels = { edit: t('common.edit'), delete: t('content.delete'), deleteConfirm: t('content.deleteConfirm'), saveFailed: t('content.saveFailed'), statusLabels };
+  const viewLabel: Record<ContentView, string> = { list: t('tasks.list'), calendar: t('tasks.calendar'), kanban: t('tasks.kanban') };
 
   return (
     <div className="space-y-6 animate-fade-up">
       <header className="flex items-baseline justify-between">
         <h1>{t('content.heading')}</h1>
-        <Link href="?new=1" scroll={false} className="btn-primary"><Plus className="h-4 w-4" />{t('content.newContent')}</Link>
+        <Link href={newHref} scroll={false} className="btn-primary"><Plus className="h-4 w-4" />{t('content.newContent')}</Link>
       </header>
 
       <div className="card card-pad space-y-2">
@@ -75,15 +95,41 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        <Link href="/content" scroll={false} className={`pill ${!statusFilter ? 'pill-ok' : 'pill-neutral'}`}>{t('common.all')}</Link>
-        {CONTENT_STATUS.map(s => (
-          <Link key={s} href={`?status=${s}`} scroll={false} className={`pill ${statusFilter === s ? 'pill-ok' : 'pill-neutral'}`}>{statusLabels[s]}</Link>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        {view === 'list' && (
+          <div className="flex flex-wrap gap-1.5">
+            <Link href="/content" scroll={false} className={`pill ${!statusFilter ? 'pill-ok' : 'pill-neutral'}`}>{t('common.all')}</Link>
+            {CONTENT_STATUS.map(s => (
+              <Link key={s} href={`?status=${s}`} scroll={false} className={`pill ${statusFilter === s ? 'pill-ok' : 'pill-neutral'}`}>{statusLabels[s]}</Link>
+            ))}
+          </div>
+        )}
+        {/* view switcher — same icon-toggle pattern as Tasks' layout switcher (TasksToolbar.tsx) */}
+        <div role="tablist" aria-label={viewLabel.list} className="ml-auto flex items-center gap-0.5 rounded-md bg-muted p-0.5">
+          {CONTENT_VIEWS.map(v => {
+            const Icon = VIEW_ICON[v];
+            const href = v === 'list' ? '/content' : v === 'calendar' ? `?view=calendar&month=${month ?? asOfToday.slice(0, 7)}` : '?view=kanban';
+            return (
+              <Link key={v} href={href} role="tab" title={viewLabel[v]} aria-label={viewLabel[v]} aria-selected={view === v} scroll={false}
+                className={`grid h-7 w-7 place-items-center rounded-sm transition-colors duration-fast ${view === v ? 'bg-surface text-ink shadow-card' : 'text-ink-3 hover:text-ink'}`}>
+                <Icon className="h-4 w-4" />
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {page.error ? (
         <div className="card card-pad text-sm text-bad">{t('content.loadFailed')}</div>
+      ) : view === 'kanban' ? (
+        <ContentBoard items={page.items} actionsLabels={actionsLabels}
+          labels={{ typeLabels, platformLabels, noOwner: t('content.noOwner'), empty: t('content.empty') }} />
+      ) : view === 'calendar' ? (
+        <ContentCalendar items={page.items} month={month!} asOf={asOfToday} locale={locale}
+          labels={{
+            calendarPrev: t('tasks.calendarPrev'), calendarToday: t('tasks.calendarToday'), calendarNext: t('tasks.calendarNext'),
+            noPublishDate: t('content.noPublishDate'), noOwner: t('content.noOwner'),
+          }} />
       ) : !items.length ? (
         <div className="card card-pad text-sm text-ink-3">{statusFilter ? t('content.emptyFiltered') : t('content.empty')}</div>
       ) : (
@@ -104,7 +150,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
       )}
 
       {drawerOpen && (
-        <ContentDrawer options={page.options} onCloseHref="/content"
+        <ContentDrawer options={page.options} onCloseHref={closeHref}
           content={editing ? {
             id: editing.id, title: editing.title, type: editing.type, platform: editing.platform, status: editing.status,
             ownerId: editing.owner?.id ?? '', productId: editing.product?.id ?? '', campaignId: editing.campaign?.id ?? '',

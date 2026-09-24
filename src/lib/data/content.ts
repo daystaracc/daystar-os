@@ -82,11 +82,14 @@ export async function getContentOptions(orgId: string, locale: Locale): Promise<
 /**
  * CONTENT (spec §07 Content engine) — "Are we producing, what works?"
  *
- * A flat list (not a full drag-drop kanban — see ARCHITECTURE §0 for why), sorted by
- * pipeline stage so unfinished work surfaces before published pieces, plus a weekly
- * publishing-pace card built from the already-tested `computePacing()` /
- * `weekBounds()` in `lib/calculations/pacing.ts` (the same functions Revenue's period
- * switcher uses) — no new pure logic for this screen.
+ * Returns a flat list, sorted by pipeline stage so unfinished work surfaces before
+ * published pieces, plus a weekly publishing-pace card built from the already-tested
+ * `computePacing()` / `weekBounds()` in `lib/calculations/pacing.ts` (the same
+ * functions Revenue's period switcher uses) — no new pure logic for this screen. This
+ * function stays view-agnostic on purpose: content/page.tsx now also renders a
+ * Calendar (by `publishDate`) and a drag-drop Kanban (by `status`) over this exact
+ * same `items` array — see that file's doc comment — so the flat/sorted shape here is
+ * a serialization choice, not a limit on what the UI can do with it.
  *
  * `campaign` (added 2026-09-16): `content.campaign_id` has been in the schema since
  * the original migration (a creator/content piece tied to a specific paid push), but

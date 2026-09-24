@@ -225,6 +225,7 @@ export const en = {
     deleteConfirm: 'Delete this content piece? This cannot be undone.',
     saveFailed: 'Could not save — check the form and try again.',
     empty: 'No content yet.', emptyFiltered: 'Nothing at this stage.', loadFailed: 'Could not load content.',
+    noPublishDate: 'No publish date',
   },
   sops: {
     heading: 'SOPs', newSop: 'New SOP', editSop: 'Edit SOP',
@@ -296,6 +297,14 @@ export const en = {
     contentLog: 'Content log', addContent: 'Add content', productsSent: 'Products sent', url: 'URL', publishedAt: 'Published',
     views: 'Views', sales: 'Sales', contentEmpty: 'No content logged yet.',
     deleteContentConfirm: 'Delete this content log entry? This cannot be undone.',
+
+    trafficHeading: 'Website traffic', trafficAsOf: 'As of',
+    trafficSessions: 'Sessions', trafficUsers: 'Users', trafficPageviews: 'Pageviews',
+    trafficAvgDuration: 'Avg. session', trafficEngagementRate: 'Engagement rate', trafficVsYesterday: 'vs day before',
+    trafficTopPages: 'Top pages', trafficSources: 'Traffic sources',
+    trafficNoPages: 'No page data yet.', trafficNoSources: 'No source data yet.',
+    trafficNotConfigured: 'Website traffic isn’t connected yet — Google Analytics needs to be linked first.',
+    trafficLoadFailed: 'Could not load website traffic.',
   },
   crm: {
     heading: 'CRM', tabFlows: 'Flows', tabMetrics: 'Monthly metrics', tabCustomers: 'Customers',
