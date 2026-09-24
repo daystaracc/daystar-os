@@ -38,6 +38,7 @@ export const en = {
     noSessionData: 'No session data', noSessionDetail: 'No website sessions recorded for this period', },
   revenue: {
     heading: 'Revenue', subtitle: 'Every channel, every day — what actually happened vs target.',
+    neverAutoSynced: 'Not yet synced automatically',
     addEntry: 'Add revenue', editEntry: 'Edit revenue entry', deleteEntry: 'Delete entry', deleteConfirm: 'Delete this entry? This cannot be undone.',
     date: 'Date', channel: 'Channel', orders: 'Orders', grossRevenue: 'Gross revenue', refunds: 'Refunds', platformFees: 'Platform fees', sessions: 'Sessions', notes: 'Notes',
     channelWebsite: 'Website', channelShopee: 'Shopee', channelOther: 'Other',
