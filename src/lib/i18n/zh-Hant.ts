@@ -40,6 +40,7 @@ export const zhHant: Dictionary = {
     noSessionData: '沒有工作階段資料', noSessionDetail: '這段期間沒有網站工作階段記錄', },
   revenue: {
     heading: '營收', subtitle: '每個通路、每一天——實際表現對比目標。',
+    neverAutoSynced: '尚未自動同步',
     addEntry: '新增營收', editEntry: '編輯營收', deleteEntry: '刪除紀錄', deleteConfirm: '刪除這筆紀錄？此動作無法復原。',
     date: '日期', channel: '通路', orders: '訂單數', grossRevenue: '總營收', refunds: '退款', platformFees: '平台費用', sessions: '工作階段', notes: '備註',
     channelWebsite: '官網', channelShopee: 'Shopee', channelOther: '其他',
