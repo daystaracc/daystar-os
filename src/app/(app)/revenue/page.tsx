@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/server';
 import { getT } from '@/lib/i18n/server';
 import { can, type Role } from '@/lib/permissions';
 import { getRevenue } from '@/lib/data/revenue';
+import { getLastShowmoreSync } from '@/lib/data/showmoreSyncStatus';
 import { resolvePeriod, type RevenuePeriodPreset } from '@/lib/calculations/pacing';
 import { KpiCard } from '@/components/dashboard/KpiCard';
 import { PeriodSwitcher } from '@/components/revenue/PeriodSwitcher';
 import { RevenueTable } from '@/components/revenue/RevenueTable';
 import { RevenueEntryDrawer } from '@/components/revenue/RevenueEntryDrawer';
+import { LastSyncStatus } from '@/components/revenue/LastSyncStatus';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +44,10 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
 
   const preset = (PRESETS as readonly string[]).includes(first(sp.period) ?? '') ? (first(sp.period) as RevenuePeriodPreset) : '30d';
   const asOf = new Date().toISOString().slice(0, 10);
-  const data = await getRevenue(m.organization_id, preset, asOf);
+  const [data, syncStatus] = await Promise.all([
+    getRevenue(m.organization_id, preset, asOf),
+    getLastShowmoreSync(m.organization_id),
+  ]);
 
   const openEntryId = first(sp.entry);
   const editingEntry = openEntryId ? data.entries.find(e => e.id === openEntryId) : undefined;
@@ -59,6 +64,9 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
         <div>
           <h1>{t('revenue.heading')}</h1>
           <p className="mt-1 text-sm text-ink-3">{t('revenue.subtitle')}</p>
+          <div className="mt-1.5">
+            <LastSyncStatus status={syncStatus} labels={{ neverSynced: t('revenue.neverAutoSynced') }} />
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <PeriodSwitcher active={preset} labels={periodLabels} />
