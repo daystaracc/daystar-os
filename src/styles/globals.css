@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -------------------------------------------------------------------------
+   DAYSTAR OS design tokens — the only place colors, radius, shadows live.
+   Warm neutrals from the brand (cream / stone / brown / gold); status colors
+   carry meaning; no blue-dominant UI.
+   ------------------------------------------------------------------------- */
+:root {
+  --bg: 40 29% 96%;            /* #F7F4EF cream — app background */
+  --surface: 0 0% 100%;         /* cards, tables, drawers */
+  --muted: 40 22% 91%;          /* #EDE9E2 stone — subtle fills, hover rows */
+  --border: 37 19% 86%;         /* warm gray hairline */
+  --border-strong: 37 15% 76%;
+  --ink: 0 0% 7%;               /* #111111 primary text */
+  --ink-2: 0 0% 35%;            /* secondary text (#595959) */
+  --ink-3: 0 0% 45%;            /* #737373 labels, placeholders */
+  --brand-brown: 29 26% 23%;    /* #4B3A2C — primary actions */
+  --brand-gold: 39 47% 59%;     /* #C8A566 — hero / progress accents, used sparingly */
+  --brand-cream: 40 29% 96%;
+  --brand-stone: 40 22% 91%;
+  --accent: 29 26% 23%;         /* buttons & focus rings = brand brown */
+  --accent-soft: 29 26% 92%;
+  --ok: 152 46% 33%;            /* #2E7D4F healthy / completed */
+  --ok-soft: 152 40% 94%;
+  --warn: 36 72% 42%;           /* #B7791F warning / at risk */
+  --warn-soft: 36 70% 94%;
+  --bad: 6 60% 47%;             /* #C0392B critical / behind / overdue */
+  --bad-soft: 6 60% 95%;
+
+  --r-sm: 6px; --r-md: 10px; --r-lg: 14px; --r-xl: 20px;
+  --shadow-card: 0 1px 2px rgba(17,17,17,.04), 0 0 0 1px hsl(var(--border));
+  --shadow-pop: 0 8px 24px rgba(17,17,17,.08), 0 0 0 1px hsl(var(--border));
+  --shadow-drawer: -12px 0 40px rgba(17,17,17,.10);
+}
+
+@layer base {
+  html { color-scheme: light; }
+  body { @apply bg-bg text-ink antialiased; font-feature-settings: "tnum" 1, "cv11" 1; }
+  ::selection { background: hsl(var(--brand-gold) / .35); }
+  :focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 2px; }
+  h1 { @apply text-2xl font-semibold tracking-tight; }
+  h2 { @apply text-lg font-semibold tracking-tight; }
+}
+
+@layer components {
+  .card { @apply rounded-lg bg-surface shadow-card; }
+  .card-pad { @apply p-5; }
+  .label { @apply text-label uppercase text-ink-3; }
+  .kpi { @apply text-kpi tabular-nums; }
+  .kpi-lg { @apply text-kpi-lg tabular-nums; }
+  .row-hover { @apply transition-colors duration-fast hover:bg-muted/60; }
+  .pill { @apply inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-medium; }
+  .pill-ok { @apply bg-ok-soft text-ok; } .pill-warn { @apply bg-warn-soft text-warn; } .pill-bad { @apply bg-bad-soft text-bad; } .pill-neutral { @apply bg-muted text-ink-2; }
+  .btn { @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors duration-fast disabled:opacity-50; }
+  .btn-primary { @apply btn bg-accent text-white hover:bg-accent/90; }
+  .btn-ghost { @apply btn text-ink-2 hover:bg-muted; }
+  .btn-outline { @apply btn border border-border bg-surface hover:bg-muted; }
+  .input { @apply h-9 w-full rounded-md border border-border bg-surface px-3 text-sm placeholder:text-ink-3 focus:border-border-strong; }
+}
+
+/* -------------------------------------------------------------------------
+   CONTENT MODULE THEME — scoped dark/gold visual skin for the Content Ops
+   screen only (list/calendar/kanban + the create/edit drawer). Lucas asked
+   for this specific look (an artifact he commissioned) applied as a *pure
+   restyle* — no change to the real 8-stage pipeline or content_type/
+   platform data model (see docs/ARCHITECTURE.md). Every rule below is
+   nested under `.content-theme` so none of it leaks onto the shared tokens
+   or `.card`/`.btn-*`/`.pill-*`/`.input` classes every other module still
+   uses untouched — this is an addition, not a replacement, of the design
+   system above. `.content-theme` itself is applied once, in
+   `app/(app)/content/layout.tsx`, which also loads the three Google Fonts
+   below scoped to just that route segment.
+   ------------------------------------------------------------------------- */
+/* Wrapped in @layer components (2026-10-05 fix — see the matching note at the
+   bottom of this block) so Tailwind's utility classes (emitted into
+   @layer utilities by the @tailwind directives at the top of this file) can
+   actually override these rules, the way `px-0`/`h-7`/`w-7` etc. are meant to
+   everywhere else in this codebase. */
+@layer components {
+.content-theme {
+  --ct-bg: #0b0b0d; --ct-surface: #17151b; --ct-surface-2: #1d1a22; --ct-field: #131117;
+  --ct-hairline: rgba(243, 239, 230, .09); --ct-line: rgba(201, 162, 78, .28);
+  --ct-gold: #c9a24e; --ct-gold-bright: #e4c273; --ct-ice: #7fd9e0;
+  --ct-paper: #f3efe6; --ct-muted: #a49eab; --ct-muted-2: #726c7c; --ct-bad: #e8735c;
+  --ct-hairline-strong: rgba(243, 239, 230, .22);
+  /* Pillar swatch palette (migration 0012, 2026-10-02) — the main categorization axis
+     now; replaces the old 8-stage status ramp this block used to hold (status is now
+     just idea/planned/shot/posted, shown as a glyph via .ct-status-glyph below, not a
+     color ramp). Fixed set, matching `PILLAR_COLOR` in lib/content/constants.ts — a
+     pillar's `color` column is always one of these keys, never a freeform hex. */
+  --ct-pillar-gold: #c9a24e; --ct-pillar-rose: #c97b86; --ct-pillar-sage: #8fae84; --ct-pillar-sky: #6fb3c9;
+  --ct-pillar-violet: #9b86c9; --ct-pillar-bronze: #a37a4e; --ct-pillar-ember: #c9693f; --ct-pillar-slate: #7b8699;
+
+  display: block; background: var(--ct-bg); color: var(--ct-paper);
+  font-family: var(--font-ct-body, 'Manrope', ui-sans-serif, system-ui, sans-serif);
+  border-radius: var(--r-xl); padding: 1.5rem; position: relative;
+}
+.content-theme .ct-eyebrow { font-family: var(--font-ct-mono, ui-monospace, monospace); font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ct-gold); display: flex; align-items: center; gap: .5em; }
+.content-theme h1 { font-family: var(--font-ct-display, 'Anton', sans-serif); font-weight: 400; letter-spacing: .01em; color: var(--ct-paper); }
+.content-theme .ct-mono { font-family: var(--font-ct-mono, ui-monospace, monospace); }
+.content-theme .ct-card { background: var(--ct-surface); border: 1px solid var(--ct-hairline); border-radius: var(--r-lg); }
+.content-theme .ct-card-pad { padding: 1.25rem; }
+.content-theme .ct-label { font-family: var(--font-ct-mono, ui-monospace, monospace); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ct-muted-2); }
+.content-theme .ct-muted { color: var(--ct-muted); }
+.content-theme .ct-muted-2 { color: var(--ct-muted-2); }
+.content-theme .ct-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; height: 2.25rem; padding: 0 .9rem; border-radius: var(--r-md); font-size: .82rem; font-weight: 700; border: 1px solid var(--ct-hairline); background: var(--ct-surface); color: var(--ct-paper); transition: border-color .15s, background .15s, filter .15s; }
+.content-theme .ct-btn:hover { border-color: var(--ct-gold); }
+.content-theme .ct-btn:disabled { opacity: .5; cursor: not-allowed; }
+.content-theme .ct-btn-primary { background: linear-gradient(180deg, var(--ct-gold-bright), var(--ct-gold)); color: #1a1408; border-color: transparent; }
+.content-theme .ct-btn-primary:hover { filter: brightness(1.07); }
+.content-theme .ct-btn-ghost { background: transparent; color: var(--ct-muted); }
+.content-theme .ct-btn-ghost:hover { background: var(--ct-surface-2); color: var(--ct-paper); }
+.content-theme .ct-btn-danger { background: transparent; border-color: rgba(232, 115, 92, .35); color: var(--ct-bad); }
+.content-theme .ct-btn-danger:hover { background: rgba(232, 115, 92, .1); border-color: var(--ct-bad); }
+/* Every icon-only button in this module (Pencil/Trash2/X/ChevronLeft/ChevronRight —
+   PillarManager.tsx, ContentActions.tsx, ContentDrawer.tsx, ContentCalendar.tsx) needs
+   zero horizontal padding so the icon can center in a fixed h-7/h-8 w-7/w-8 box. They
+   were written using Tailwind's `px-0` utility for that, which doesn't work here:
+   `.content-theme .ct-btn`'s own `padding: 0 .9rem` above is a two-class selector
+   (0,2,0) and always beats a one-class Tailwind utility like `.px-0` (0,1,0) —
+   Tailwind's build doesn't emit real CSS `@layer` rules (confirmed in the compiled
+   output), so there's no layer-order escape hatch, only plain specificity, and `px-0`
+   can never win here regardless of source order. Net effect (found 2026-10-05, from a
+   live screenshot Lucas sent of "Manage pillars"): every icon-only button rendered as
+   a blank box. The buttons were never actually broken — onClick/confirm() all fired
+   correctly — flexbox was just shrinking the icon to 0 width inside the ~2px of
+   content box that 14.4px of uncancelled padding left inside a 28px button (height
+   rendered fine since it's the cross axis, not subject to the same shrink). Fix: a
+   dedicated class at matching specificity instead of relying on a utility override. */
+.content-theme .ct-btn-icon { padding: 0; }
+.content-theme .ct-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--ct-hairline); background: var(--ct-surface); font-size: .76rem; color: var(--ct-paper); transition: border-color .15s, background .15s, color .15s; }
+.content-theme .ct-chip[aria-current="true"],.content-theme .ct-chip.is-active { border-color: var(--ct-gold); color: var(--ct-gold-bright); background: var(--ct-surface-2); }
+.content-theme .ct-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; }
+.content-theme .ct-input,.content-theme select.ct-input,.content-theme textarea.ct-input { width: 100%; background: var(--ct-field); border: 1px solid var(--ct-hairline); border-radius: var(--r-sm); color: var(--ct-paper); padding: 9px 10px; font-family: var(--font-ct-body, 'Manrope', sans-serif); font-size: .85rem; }
+.content-theme .ct-input:focus { outline: none; border-color: var(--ct-gold); }
+.content-theme .ct-input::placeholder { color: var(--ct-muted-2); }
+.content-theme .ct-tab { display: grid; place-items: center; border-radius: var(--r-sm); color: var(--ct-muted); transition: background .15s, color .15s; }
+.content-theme .ct-tab[aria-selected="true"] { background: var(--ct-surface); color: var(--ct-paper); }
+.content-theme .ct-segmented { background: var(--ct-surface-2); border-radius: var(--r-md); }
+.content-theme .ct-drawer-scrim { background: rgba(5, 5, 6, .72); }
+.content-theme .ct-drawer-panel { background: var(--ct-surface); box-shadow: -12px 0 40px rgba(0, 0, 0, .4); }
+
+/* Status glyph (○/◐/●/✓ — STATUS_GLYPH in lib/content/constants.ts). Status is a
+   4-stage production-progress marker now, not a color ramp — see the pillar swatch
+   palette above for the actual categorization color. */
+.content-theme .ct-status-glyph { font-family: var(--font-ct-mono, ui-monospace, monospace); color: var(--ct-gold); font-size: .85em; line-height: 1; }
+
+/* Pillar swatch picker (PillarManager.tsx's "Manage pillars" panel) and the centered
+   modal it (and nothing else in Content, which otherwise only uses the right-side
+   ct-drawer-panel) needs. */
+.content-theme .ct-modal-scrim { background: rgba(5, 5, 6, .72); display: grid; place-items: center; padding: 1.5rem; }
+.content-theme .ct-modal-panel { background: var(--ct-surface); border: 1px solid var(--ct-hairline); border-radius: var(--r-lg); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); width: 100%; max-width: 26rem; max-height: calc(100vh - 3rem); overflow-y: auto; }
+.content-theme .ct-swatch { width: 1.35rem; height: 1.35rem; border-radius: 50%; flex: none; border: 2px solid transparent; transition: border-color .15s, transform .1s; cursor: pointer; }
+.content-theme .ct-swatch:hover { transform: scale(1.1); }
+.content-theme .ct-swatch[aria-pressed="true"] { border-color: var(--ct-paper); }
+
+/* Calendar view: dark panel with gold corner brackets, hairline grid. */
+.content-theme .ct-cal-panel { position: relative; background: var(--ct-surface); border: 1px solid var(--ct-hairline); border-radius: var(--r-lg); overflow: hidden; }
+.content-theme .ct-cal-panel::before,.content-theme .ct-cal-panel::after { content: ''; position: absolute; width: 10px; height: 10px; opacity: .55; }
+.content-theme .ct-cal-panel::before { top: -1px; left: -1px; border-top: 2px solid var(--ct-gold); border-left: 2px solid var(--ct-gold); }
+.content-theme .ct-cal-panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--ct-gold); border-right: 2px solid var(--ct-gold); }
+.content-theme .ct-dow { padding: 10px 8px; font-family: var(--font-ct-mono, ui-monospace, monospace); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ct-muted-2); text-align: center; border-bottom: 1px solid var(--ct-hairline); }
+.content-theme .ct-cal-day { min-height: 6.5rem; border-right: 1px solid var(--ct-hairline); border-bottom: 1px solid var(--ct-hairline); padding: 6px; }
+.content-theme .ct-cal-day.is-empty { background: rgba(0, 0, 0, .18); }
+.content-theme .ct-cal-day.is-today { background: rgba(201, 162, 78, .07); }
+.content-theme .ct-cal-today-badge { display: inline-grid; place-items: center; height: 1.25rem; width: 1.25rem; border-radius: 50%; background: var(--ct-gold); color: #1a1408; font-weight: 700; }
+.content-theme .ct-post-chip { display: block; border-left: 3px solid var(--ct-muted-2); background: var(--ct-field); border-radius: 3px; padding: 2px 6px; font-size: .72rem; color: var(--ct-paper); line-height: 1.25; }
+.content-theme .ct-post-chip:hover { background: var(--ct-surface-2); }
+
+/* Kanban view: dark columns, gold drop-target state. */
+.content-theme .ct-kanban-col { border-radius: var(--r-lg); border: 1px solid transparent; background: rgba(255, 255, 255, .025); transition: background .15s, border-color .15s; }
+.content-theme .ct-kanban-col.is-over { border-color: var(--ct-gold); background: rgba(201, 162, 78, .08); }
+.content-theme .ct-kanban-card { background: var(--ct-surface); border: 1px solid var(--ct-hairline); border-radius: var(--r-md); }
+
+.content-theme .ct-pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; padding: 2px 7px; font-size: .72rem; font-weight: 600; }
+.content-theme .ct-pill-ok { background: rgba(127, 217, 224, .12); color: var(--ct-ice); }
+.content-theme .ct-pill-bad { background: rgba(232, 115, 92, .12); color: var(--ct-bad); }
+.content-theme .ct-pill-neutral { background: var(--ct-surface-2); color: var(--ct-muted); }
+.content-theme .ct-text-bad { color: var(--ct-bad); }
+.content-theme .ct-row-hover { transition: background-color .12s; }
+.content-theme .ct-row-hover:hover { background: var(--ct-surface-2); }
+.content-theme .ct-divide-y > * + * { border-top: 1px solid var(--ct-hairline); }
+} /* end @layer components (.content-theme) — 2026-10-05 fix, see note above */
