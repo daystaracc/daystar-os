@@ -15,7 +15,7 @@ Source of truth for the strategy: **《DAYSTAR — 100M PLAYBOOK》** (14 chapte
 
 ---
 
-## 0. Current state — read this first (updated 2026-10-02)
+## 0. Current state — read this first (updated 2026-10-05)
 
 Sections 1–10 are the product spec and remain the target. This section is where the
 build actually is. It is written for someone picking this up cold.
@@ -52,10 +52,10 @@ Accounts: `kaistarkai77@gmail.com` (KAi, founder) · `lucasmccollister@gmail.com
 | Customer import — `/revenue/import` now also populates `customers` from the same file, phone numbers hashed and never stored | **live-verified 2026-09-15** — see Revenue above; hit and fixed a real `ON CONFLICT` bug in migration `0008` (§ below, fixed by `0009`) |
 | Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | **live-verified 2026-10-01** — opens correctly, returns real cross-module results (tasks, products, content) for a live query, fast, no debounce issues |
 | Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | **live-verified 2026-10-01** — page renders correctly, showed the expected empty state before the fan-out below existed |
-| Audit Log `/audit-log` — **new 2026-10-02**: read-only, paginated (50/page) feed over `activity_logs`, filterable by entity type (fixed 12-value set — tasks/projects/inventory movements/revenue entries/targets/monthly finance/key results/health scores/the 4 cron-written types), founder+manager via `can.viewAuditLog` (mirrors `activity_logs_select` RLS exactly). The last remaining Phase 6 item — see the 2026-10-02 entry below | **written, syntax-checked and i18n-parity-verified in this sandbox (no npm registry access) — not yet run through real `tsc`, not yet click-tested.** Needs `npm run typecheck`, `npm run test:calc`, `npm run lint`, and a click-test once Lucas is back at the keyboard |
-| Notifications fan-out — **new 2026-10-01**: `GET /api/cron/notifications-fanout`, a Vercel Cron job (daily, `vercel.json`) that finally writes rows into the `notifications` table, reusing `evaluateRules()` (the exact same logic behind Overview's "What needs attention") against a narrower, admin-client-gathered snapshot. Covers revenue pace, hero-stock, overdue tasks, content/ad-spend stalls, stale CS — not yet project health, key results, AOV/CVR, reviews, or the systems score (see the route's own doc comment for why and how to extend it). **Written, not yet typechecked, not deployed** — needs `npm run typecheck`, a `CRON_SECRET` set in Vercel, the `git push` that's already pending for the hydration fix, and one manual `curl` test before the first real cron run. See the 2026-10-01 entry below |
+| Audit Log `/audit-log` — read-only, paginated (50/page) feed over `activity_logs`, filterable by entity type (fixed 12-value set — tasks/projects/inventory movements/revenue entries/targets/monthly finance/key results/health scores/the 4 cron-written types), founder+manager via `can.viewAuditLog` (mirrors `activity_logs_select` RLS exactly). The last remaining Phase 6 item | **live-verified 2026-10-05** — deployed (commit `5984bc5`, the 2026-10-02 work finally pushed) and confirmed rendering real rows on the live site |
+| Notifications fan-out — `GET /api/cron/notifications-fanout`, a Vercel Cron job (daily, `vercel.json`) that writes rows into the `notifications` table, reusing `evaluateRules()` (the exact same logic behind Overview's "What needs attention") against a narrower, admin-client-gathered snapshot. Covers revenue pace, hero-stock, overdue tasks, content/ad-spend stalls, stale CS — not yet project health, key results, AOV/CVR, reviews, or the systems score (see the route's own doc comment for why and how to extend it) | **live-verified 2026-10-05, end-to-end, after fixing a real production bug** — deployed since `5984bc5` but silently never executed (see the 2026-10-05 entry below: `middleware.ts` redirected every cron/internal/webhook call to `/login` before the route's own secret-header check ever ran). Fixed in `06b43db`; after redeploy, a manual Run produced a real `200` (2.45s execution) and populated 3 real notifications on `/notifications` — overdue tasks, a content stall, and a 31-day paid-ads gap |
 | Operations `/operations` — **new 2026-09-21**: Daily log (`operations_daily`, upsert-by-day) / CS cases (`customer_service_cases`, full CRUD with status workflow) in one tabbed screen (`?tab=daily` / `?tab=cs`). See § below — this page didn't exist; the sidebar link 404'd since the app's first session |
-| Showmore order sync — **daily automated scraping sync, fixed and live-verified 2026-10-01** (superseded the 2026-09-21 webhook/API plan below — Lucas declined the paid Showmore API plan, so this is a browser-scraping fallback hitting the admin panel directly). `SHOWMORE_SYNC_SECRET` confirmed set in Vercel; `POST /api/internal/showmore-daily-sync` manually exercised end-to-end (91 orders, NT$99,853, Sept 27–Oct 1) and confirmed live on `/revenue`. **Real remaining gap: the *daily scheduled* run has been silently failing every day for a week** — it reports `SUCCEEDED` but can't get live browser/device access without a same-day human approval (`no_signed_approval`, discovered via `fire_trigger`). Three options on the table for Lucas: (a) approve the daily run manually each day, (b) keep doing periodic manual syncs like this one, (c) revisit the paid Showmore API plan to remove the human-approval dependency entirely. See § below for the original webhook/API design (not pursued, plan declined) |
+| Showmore order sync — **daily automated scraping sync** (superseded the 2026-09-21 webhook/API plan below — Lucas declined the paid Showmore API plan, so this is a browser-scraping fallback hitting the admin panel directly), once-daily at 5PM Taipei with a 5-day rolling catch-up window. `SHOWMORE_SYNC_SECRET` confirmed set in Vercel | **independently reconciled 2026-10-05** — Lucas pasted the raw Showmore order export (158 rows, Oct 1–5) and every app-side daily total matched it exactly (151 non-abandoned orders, NT$154,463, per-day breakdown all ✓ — see the delivered reconciliation spreadsheet). The apparent "off by NT$1,049" discrepancy that prompted the check turned out to be the normal once-a-day sync lag, not a bug. **Cadence decision made 2026-10-05: keep once-daily** (Lucas's call, given the data is already proven accurate day-to-day) — the increase-frequency and revisit-the-paid-API-plan options are explicitly not being pursued right now |
 
 > **✅ Decision made 2026-09-16: email only, not phone.** Asked directly ("email
 > only" / "add phone + email" / "keep as-is"), Lucas picked **email only**.
@@ -84,6 +84,56 @@ dead top-bar controls (search, the bell) both go somewhere real.**
 import have both run successfully against Lucas's real data (§ below). What's
 left: click-testing the screens still marked "typechecks clean, not yet
 click-tested" in the table above — nothing else is currently blocked on Lucas.
+
+**2026-10-05: the "3 days to make this usable" push — closed a 13-day deploy gap,
+found and fixed a real production bug (cron jobs were silently never running),
+and independently reconciled revenue against raw order data.** Lucas opened the
+session frustrated: "I want this shit to work in three days... have not been able
+to use this OS." Root cause wasn't any one broken screen — `git log` on his
+machine showed nothing had been pushed to `main` since Sept 24 (`8f7ed0d`),
+so the live site had been running an 11-day-old build the whole time Content's
+pillar migration, the Audit Log screen, both cron routes, and the React #418
+hydration fix all existed only on his laptop.
+
+Sequence: (1) diagnosed an apparent revenue-numbers discrepancy (Lucas: "off by
+1049") — traced to the Showmore sync's normal once-daily cadence lag, not a bug;
+Lucas then pasted the raw 158-row Showmore export (Oct 1–5) and it matched the
+app's numbers exactly (151 orders, NT$154,463, every day ✓ — delivered as an
+xlsx reconciliation with live formulas, not hardcoded). The NT$1,049 figure
+itself was never located in the data; closest candidate was a NT$1,149 excluded
+order, flagged as a likely typo. (2) `npm run typecheck` surfaced a real blocker,
+`creators.cost` typed `NOT NULL DEFAULT 0` where every other cost column in this
+app treats `null` as "unknown" — migration `0013_creators_cost_nullable.sql`
+loosens the constraint without touching any existing row (which of the 6
+zero-cost creators are genuinely free vs. never-entered is still Lucas's call,
+not made here). (3) All 36 outstanding files committed and pushed (`5984bc5`),
+landing Content pillars, Audit Log, both cron routes, the hydration fix, and
+`vercel.json` on production for the first time. (4) Lucas clicked "Run" on
+`notifications-fanout` and saw nothing happen — turned out `src/middleware.ts`'s
+route matcher never excluded `api/cron`, `api/internal`, or `api/webhooks`
+(only `api/public`), so every one of those server-to-server calls (authenticated
+by their own secret header, never a session cookie) got a 307 redirect to
+`/login` before the route's own auth check ran. Vercel logs a 307 as a normal
+response, so this failed completely silently — not just tonight's manual click,
+every scheduled run since the cron was deployed. Fixed in `06b43db` (added the
+three folders to the matcher's exclusion list; none of those routes rely on the
+session check, they all already gate on their own secret). After redeploy,
+confirmed via Vercel's request logs: the same call that 307'd now returns a real
+`200` in 2.45s, and `/notifications` shows 3 real rows (overdue tasks, a content
+stall, a 31-day paid-ads gap). **This was the first time notifications-fanout has
+ever successfully executed.**
+
+One side-finding from the notifications content itself: the content-stall
+notification reads "0 pieces in 3/7 days (target 0/week)" — `/content` confirms
+no weekly content target is actually set, so that's a missing-target data gap,
+not a real 0-content problem. Worth setting a real `targets.weekly_content` row.
+
+Two items still need Lucas's own hands (both hit the same destructive-action
+tool guard that blocks this agent from clicking them): deleting the "Claude test
+pillar (delete me)" row on `/content` (open 管理內容支柱 → 刪除支柱), and manually
+running `auto-reorder-tasks` once to confirm the same middleware fix covers it
+too (it should — same matcher, same deploy — but hasn't been independently
+click-tested the way notifications-fanout was).
 
 **2026-10-01: Showmore sync fixed and diagnosed, a real global hydration bug found and
 fixed, and the full click-testing sweep finished.**
