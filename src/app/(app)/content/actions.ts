@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { CONTENT_TYPE, CONTENT_PLATFORM, CONTENT_STATUS, type ActionResult, type ContentStatus } from '@/lib/content/constants';
+import { CONTENT_TYPE, CONTENT_PLATFORM, CONTENT_STATUS, PILLAR_COLOR, type ActionResult, type ContentStatus } from '@/lib/content/constants';
 
 // Every mutation returns an ActionResult instead of throwing — same pattern as
 // app/(app)/tasks/actions.ts, app/(app)/projects/actions.ts, app/(app)/goals/actions.ts
@@ -37,6 +37,9 @@ const createSchema = z.object({
   owner_id: emptyToNull(uuid),
   product_id: emptyToNull(uuid),
   campaign_id: emptyToNull(uuid),
+  // Added 2026-10-02 (migration 0012) — the main categorization axis now; optional
+  // same as campaign_id/product_id, since not every piece is pillar-sorted from creation.
+  pillar_id: emptyToNull(uuid),
   talent: emptyToNull(z.string().max(200)),
   concept: emptyToNull(z.string().max(2000)),
   hook: emptyToNull(z.string().max(500)),
@@ -53,6 +56,7 @@ const updateSchema = z.object({
   owner_id: emptyToNull(uuid).optional(),
   product_id: emptyToNull(uuid).optional(),
   campaign_id: emptyToNull(uuid).optional(),
+  pillar_id: emptyToNull(uuid).optional(),
   talent: emptyToNull(z.string().max(200)).optional(),
   concept: emptyToNull(z.string().max(2000)).optional(),
   hook: emptyToNull(z.string().max(500)).optional(),
@@ -101,9 +105,9 @@ export async function updateContent(id: string, raw: unknown): Promise<ActionRes
  * Inline "advance stage" control on the list — the routine action of moving a piece
  * to the next pipeline column without opening the full edit drawer, same idea as
  * `setTaskStatus` and Goals' `updateKeyResultValue`. The first time a piece reaches
- * `published`, this also stamps `published_at` — once set it's never overwritten by
- * a later save, so re-editing a published piece can't quietly change when it "went
- * live".
+ * `posted` (renamed from `published` by migration 0012 — see that file's header
+ * comment), this also stamps `published_at` — once set it's never overwritten by a
+ * later save, so re-editing a posted piece can't quietly change when it "went live".
  */
 export async function updateContentStatus(id: string, status: ContentStatus): Promise<ActionResult> {
   if (!uuid.safeParse(id).success || !CONTENT_STATUS.includes(status)) return fail('invalid');
@@ -111,7 +115,7 @@ export async function updateContentStatus(id: string, status: ContentStatus): Pr
   if (!c) return fail('forbidden');
 
   const patch: { status: ContentStatus; published_at?: string } = { status };
-  if (status === 'published') {
+  if (status === 'posted') {
     const { data: current } = await c.sb.from('content').select('published_at').eq('id', id).maybeSingle();
     if (current && !current.published_at) patch.published_at = new Date().toISOString();
   }
@@ -119,6 +123,70 @@ export async function updateContentStatus(id: string, status: ContentStatus): Pr
   if (error) return fail('failed');
   if (!data?.length) return fail('forbidden');
   refresh();
+  return ok(undefined);
+}
+
+// ---- pillars (added 2026-10-02, migration 0012) --------------------------
+// `pillars_insert`/`pillars_update` RLS: manager-or-above (mirrors `campaigns`,
+// a content-marketing taxonomy — not founder-only like `departments`).
+// `pillars_delete`: founder-only, same as `departments` and every other
+// generic-loop table's delete policy.
+
+const pillarSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  name_zh: emptyToNull(z.string().max(100)),
+  color: z.enum(PILLAR_COLOR).default('gold'),
+  sort_order: z.number().int().default(0),
+});
+
+function refreshPillars() {
+  revalidatePath('/content');
+}
+
+/** "Manage pillars" modal — create. Manager-or-above only (`pillars_insert` RLS). */
+export async function createPillar(raw: unknown): Promise<ActionResult<string>> {
+  const parsed = pillarSchema.safeParse(raw);
+  if (!parsed.success) return fail('invalid');
+  const c = await ctx();
+  if (!c) return fail('forbidden');
+
+  const { data, error } = await c.sb.from('pillars')
+    .insert({ ...parsed.data, organization_id: c.orgId, created_by: c.user.id }).select('id').single();
+  if (error || !data) return fail(error?.code === '42501' ? 'forbidden' : error?.code === '23505' ? 'invalid' : 'failed');
+  refreshPillars();
+  return ok(data.id);
+}
+
+/** "Manage pillars" modal — rename/recolor/reorder. Manager-or-above only (`pillars_update` RLS). */
+export async function updatePillar(id: string, raw: unknown): Promise<ActionResult> {
+  if (!uuid.safeParse(id).success) return fail('invalid');
+  const parsed = pillarSchema.partial().safeParse(raw);
+  if (!parsed.success || Object.keys(parsed.data).length === 0) return fail('invalid');
+  const c = await ctx();
+  if (!c) return fail('forbidden');
+
+  const { data, error } = await c.sb.from('pillars').update(parsed.data).eq('id', id).select('id');
+  if (error) return fail(error.code === '23505' ? 'invalid' : 'failed');
+  if (!data?.length) return fail('forbidden');
+  refreshPillars();
+  return ok(undefined);
+}
+
+/**
+ * "Manage pillars" modal — delete. Founder-only (`pillars_delete` RLS). Any content
+ * piece on this pillar is left in place with `pillar_id` set back to null (the
+ * column's `on delete set null`, migration 0012) — deleting a pillar never deletes
+ * content.
+ */
+export async function deletePillar(id: string): Promise<ActionResult> {
+  if (!uuid.safeParse(id).success) return fail('invalid');
+  const c = await ctx();
+  if (!c) return fail('forbidden');
+
+  const { data, error } = await c.sb.from('pillars').delete().eq('id', id).select('id');
+  if (error) return fail('failed');
+  if (!data?.length) return fail('forbidden');
+  refreshPillars();
   return ok(undefined);
 }
 

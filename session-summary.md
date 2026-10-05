@@ -4,7 +4,145 @@ A plain-language rundown of this session's work, updated after the "keep buildin
 while I'm away" run. Everything below is already saved to your `daystar-os` folder
 on your computer.
 
-## 2026-09-21, even later: automatic order sync from Showmore is built (not deployed yet)
+## 2026-10-02: Content got its pillars (and its status pipeline shrank to 4 stages) — live, migrated, and click-tested
+
+You asked for Content to match that artifact prototype you sent over — dark/gold
+theme, a `pillars` taxonomy, a 4-stage idea → planned → shot → posted pipeline. First
+pass was "just restyle, no data model change," which shipped same-day. Then you came
+back mid click-test and said to go all the way: make the status pipeline actually
+collapse from its real 8 stages down to 4, and add pillars as the real way content
+gets categorized, not just a visual skin.
+
+That's a real schema change, so it needed your hands for a few steps. You ran the
+migration in the Supabase SQL editor (clean — "Success. No rows returned"), then
+`npm run db:types` to pull the real schema. `npm run test:calc` came back 121/121
+green, `npm run lint` clean. I then opened the actual running app and clicked through
+it myself: created a pillar, assigned it to a content piece, confirmed it saved and
+stuck after a reload, confirmed the 4-stage status chips all work. This isn't just
+"typechecks clean" — it's been exercised against your live database.
+
+**Two real bugs turned up along the way, unrelated to Content.** Once the real schema
+types replaced the placeholder I'd been using, two older bugs that had been hiding
+became visible:
+
+- `reviews.actions.ts` was missing a required field on review creation. I fixed it —
+  one line, matches a pattern already used elsewhere in the same file. Done.
+- `creators.cost` in your live database turns out to be set up differently than the
+  code assumes — it's required and defaults to 0, when it's supposed to be allowed to
+  be blank ("unknown" is not the same as "$0"). Right now 5 of your 6 creators show a
+  cost of $0, and there's no way to tell from the data which of those are real $0
+  collabs versus ones where a cost was just never entered. I didn't touch this one —
+  it needs you to tell me which is which before I write any fix, since it means
+  touching real data. Not urgent, just sitting there whenever you want to deal with it.
+
+**One thing left for you:** there's a throwaway pillar sitting in your live database
+right now called "Claude test pillar (delete me)" — I created it to verify the
+create/assign flow actually works end-to-end. Deleting it needs an actual click from
+you (it's behind a confirm dialog I'm not able to click through myself) — open "Manage
+pillars" on the Content page, click the trash icon next to it, confirm. Takes 10
+seconds.
+
+No real pillar names are seeded — you haven't told me what your actual content
+categories should be called, so "Manage pillars" is otherwise empty and ready for you
+to fill in with the real ones whenever you're ready.
+
+## 2026-10-01: Showmore sync fixed, a real site-wide bug found and fixed, and the rest of the site click-tested
+
+**Showmore sync is actually working now — with one catch.** I confirmed the
+`SHOWMORE_SYNC_SECRET` you added to Vercel is correctly wired up, then ran the
+whole sync by hand (log into Showmore, pull the last 5 days of orders, post them
+to your site) and it worked cleanly: 91 orders, NT$99,853, showing correctly on
+your Revenue page right now.
+
+The catch: the *daily automatic* version of this has been quietly failing every
+single day for about a week. It still shows "SUCCEEDED" in the schedule, but
+that's wrong — it can't actually get into a browser to do the scraping without
+someone (you) approving it that same day, and nobody's been around to approve it
+daily. So it's been doing nothing while looking like it worked. You have three
+ways to fix this, and it's genuinely your call:
+
+1. **Approve it manually each day** — a few seconds, but it means remembering
+   daily.
+2. **Keep doing what I did today periodically** — I (or you) run the sync by
+   hand every few days instead of daily.
+3. **Go back to the paid Showmore API plan** — removes the need for anyone to
+   approve anything; it just runs. This is the one you turned down earlier
+   because of the cost, but it's the only option that's actually "set and
+   forget."
+
+I didn't pick one for you — let me know which way you want to go.
+
+I also tried to backfill the 12-day gap in your Revenue history (Sept 15–26) and
+hit Showmore's known flaky date-filter bug twice. I stopped rather than keep
+burning time on it — it's cosmetic (old history, not current numbers) and not
+blocking anything. Say the word if you want me to try again.
+
+**Found and fixed a real bug: every page on your site was quietly throwing a
+React error on load.** Not something you'd necessarily see (no visible crash),
+but it showed up in the browser console on literally every single page, the
+whole session. Cause: the top bar shows today's date, and the code that
+computed it ran once on Vercel's server clock and once on your browser's clock
+— those two clocks disagree (you're in Taipei, Vercel's servers are probably
+not), so the two versions of the date never quite matched and React complained
+every time. I fixed it by having the server compute the date once and hand it
+down, instead of the page recomputing it itself.
+
+**This fix is sitting on your computer only — it is not live yet.** I can edit
+files on your machine but I can't run `git push` for you. Next time you're at
+your computer: open a terminal in the `daystar-os` folder and run
+`git add -A && git commit -m "fix: hydration mismatch in TopBar date"` then
+`git push`. That's it — two commands, maybe 30 seconds.
+
+**Clicked through everything that hadn't been tested yet.** Projects, Goals,
+Content, SOPs, Reviews, Marketing, Finance, Team, the ⌘K search (typed "tennis,"
+got real tasks/products/content back instantly), Notifications (empty, which
+was correct at the time), and finally Company Health (all 11 systems, real
+owners and next actions). That's every screen in the app now actually clicked
+through against real data — none of it is "probably fine," all of it is
+checked.
+
+**One small thing, not urgent:** I noticed you have two separate copies of this
+project on your computer — `Desktop\Daystar-OS` and
+`Desktop\DAYSTAR_OS_foundation\daystar-os`. The first one hasn't been touched
+since early September; everything real has been happening in the second one.
+Worth deleting or archiving the old one yourself sometime so it doesn't cause
+confusion later — I didn't touch it.
+
+## 2026-10-01, later: built the first real piece of automation (notifications)
+
+With the click-testing done, I built something new instead of just checking what
+already existed: a daily job that actually fills in your Notifications bell,
+which has shown "no notifications" since the day it was built because nothing
+ever wrote to it.
+
+It's a Vercel Cron job (`vercel.json`, new file), not one of my own scheduled
+browser tasks — on purpose. The Showmore sync's daily failure taught me something
+important this session: anything that needs me to drive a real browser on a
+schedule can silently need your approval and fail quietly. A plain cron job that
+just calls your own API has no such weak point — it either runs or it shows up
+as a failure in Vercel's own logs, nobody's live approval involved. Worth using
+this pattern for anything else you want "actually automatic" going forward.
+
+It reuses the exact same "what needs attention" logic already running on your
+Overview page — same function, not a rewrite — so a low-stock alert or an
+overdue-task alert means the same thing in both places. For this first version
+it covers revenue pace, hero-product stock, overdue tasks, content going quiet,
+ad spend stopping, and stale customer-service cases — the things that were
+actually flagged on your real Overview page today. A few categories (project
+risk, key results, reviews) aren't wired in yet; I left clear notes in the code
+for extending it rather than guessing.
+
+**Also not live yet — same situation as the hydration fix.** Three things need
+to happen before it actually runs:
+1. `npm run typecheck` — I wrote this without being able to compile-check it
+   (no terminal access to your machine this session), so this is the first real
+   check.
+2. Generate a random secret and add it to Vercel as `CRON_SECRET` (steps are in
+   `.env.example`).
+3. The same `git push` that's already waiting for the hydration fix — this goes
+   out in the same push.
+
+Once those three are done, it'll start running once a day on its own.
 
 You got Showmore's real API docs and an API key, added it to Vercel yourself, and
 said to build it. It's built and all 86 automated tests pass, but it hasn't gone

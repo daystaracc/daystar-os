@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { localizedField, type Locale } from '@/lib/i18n';
 import { computePacing, weekBounds, type Pacing } from '@/lib/calculations/pacing';
 import { canEditContent, type Role } from '@/lib/permissions';
-import type { ContentType, ContentPlatform, ContentStatus } from '@/lib/content/constants';
+import type { ContentType, ContentPlatform, ContentStatus, PillarColor } from '@/lib/content/constants';
 
 export interface ContentOptions {
   owners: { id: string; name: string }[];
@@ -12,6 +12,10 @@ export interface ContentOptions {
    * original migration, but nothing in the app ever read or wrote it until now (see
    * the doc comment on `getContentPage` below). */
   campaigns: { id: string; name: string }[];
+  /** Added 2026-10-02 (migration 0012) — every org-defined pillar, for the drawer's
+   * Pillar select and the list/calendar/kanban filter row. Sorted the same way
+   * `getPillars` below returns them (sort_order, then name). */
+  pillars: { id: string; name: string; color: PillarColor }[];
 }
 
 export interface ContentRow {
@@ -24,6 +28,10 @@ export interface ContentRow {
   /** Added 2026-09-16 — see `getContentPage`'s doc comment. Null just means this
    * piece isn't tied to a paid campaign, same as `product` for organic-only content. */
   campaign: { id: string; name: string } | null;
+  /** Added 2026-10-02 (migration 0012) — the main categorization axis now (see
+   * getContentPage's doc comment). Null means uncategorized, same meaning as a null
+   * `product`/`campaign` — never defaulted to a made-up pillar. */
+  pillar: { id: string; name: string; color: PillarColor } | null;
   status: ContentStatus;
   shootDate: string | null;
   publishDate: string | null;
@@ -60,22 +68,36 @@ export interface ContentPage {
   error: boolean;
 }
 
-const STATUS_RANK: Record<ContentStatus, number> = { idea: 0, script: 1, ready_to_shoot: 2, shot: 3, editing: 4, review: 5, scheduled: 6, published: 7 };
+const STATUS_RANK: Record<ContentStatus, number> = { idea: 0, planned: 1, shot: 2, posted: 3 };
 
 // One literal string, not built with `+` — see tasks.ts's SELECT/DETAIL_SELECT note.
-const SELECT = 'id, title, content_type, platform, owner_id, product_id, campaign_id, status, shoot_date, publish_date, talent, concept, hook, url, notes, created_by, owner:owner_id(id, display_name, full_name), products:product_id(id, name, name_zh), campaigns:campaign_id(id, name), content_metrics(views)';
+const SELECT = 'id, title, content_type, platform, owner_id, product_id, campaign_id, pillar_id, status, shoot_date, publish_date, talent, concept, hook, url, notes, created_by, owner:owner_id(id, display_name, full_name), products:product_id(id, name, name_zh), campaigns:campaign_id(id, name), pillars:pillar_id(id, name, name_zh, color), content_metrics(views)';
+
+/**
+ * Every pillar defined for the org, sorted the way the UI always lists them
+ * (`sort_order` first so Lucas can order the chip row/legend deliberately, name as
+ * the tiebreak). Added 2026-10-02 (migration 0012) — see getContentPage's doc
+ * comment for why pillars exist. `pillars_select` RLS: any active member.
+ */
+export async function getPillars(orgId: string, locale: Locale): Promise<{ id: string; name: string; color: PillarColor }[]> {
+  const sb = await createClient();
+  const { data } = await sb.from('pillars').select('id, name, name_zh, color').eq('organization_id', orgId).order('sort_order').order('name');
+  return (data ?? []).map(p => ({ id: p.id, name: localizedField(p, 'name', locale), color: p.color as PillarColor }));
+}
 
 export async function getContentOptions(orgId: string, locale: Locale): Promise<ContentOptions> {
   const sb = await createClient();
-  const [{ data: people }, { data: products }, { data: campaigns }] = await Promise.all([
+  const [{ data: people }, { data: products }, { data: campaigns }, pillars] = await Promise.all([
     sb.from('memberships').select('profile_id, profiles:profile_id(id, display_name, full_name)').eq('organization_id', orgId).eq('status', 'active'),
     sb.from('products').select('id, name, name_zh').eq('organization_id', orgId).order('name'),
     sb.from('campaigns').select('id, name').eq('organization_id', orgId).order('start_date', { ascending: false }),
+    getPillars(orgId, locale),
   ]);
   return {
     owners: (people ?? []).map(m => one(m.profiles)).filter(Boolean).map(p => ({ id: p!.id, name: personName(p!) })).sort((a, b) => a.name.localeCompare(b.name)),
     products: (products ?? []).map(p => ({ id: p.id, name: localizedField(p, 'name', locale) })),
     campaigns: (campaigns ?? []).map(c => ({ id: c.id, name: c.name })),
+    pillars,
   };
 }
 
@@ -99,6 +121,11 @@ export async function getContentOptions(orgId: string, locale: Locale): Promise<
  * member who can already see Content can be blocked from seeing which campaign a
  * piece belongs to. Optional in both create and edit — most content has no paid
  * campaign behind it, same as most content having no `product_id`.
+ *
+ * `pillar` (added 2026-10-02, migration 0012): the main categorization axis now,
+ * replacing the old 8-stage status as "what kind of content is this" — status is
+ * now purely a 4-stage production-progress marker (idea/planned/shot/posted). A
+ * piece with no pillar is uncategorized, same meaning as no `product`/`campaign`.
  */
 export async function getContentPage(orgId: string, role: Role, userId: string, locale: Locale, asOf = new Date().toISOString().slice(0, 10)): Promise<ContentPage> {
   const sb = await createClient();
@@ -113,7 +140,7 @@ export async function getContentPage(orgId: string, role: Role, userId: string, 
 
 
   const target = targets.data?.[0] ? Number(targets.data[0].value) : null;
-  const publishedThisWeek = (list.data ?? []).filter(c => c.status === 'published' && c.publish_date && c.publish_date >= week.start && c.publish_date <= week.end).length;
+  const publishedThisWeek = (list.data ?? []).filter(c => c.status === 'posted' && c.publish_date && c.publish_date >= week.start && c.publish_date <= week.end).length;
   const pacing = target !== null ? computePacing({ target, actual: publishedThisWeek, periodStart: week.start, periodEnd: week.end, asOf }) : null;
 
   const items: ContentRow[] = (list.data ?? []).map(c => ({
@@ -124,6 +151,7 @@ export async function getContentPage(orgId: string, role: Role, userId: string, 
     owner: one(c.owner) ? { id: one(c.owner)!.id, name: personName(one(c.owner)!) } : null,
     product: one(c.products) ? { id: one(c.products)!.id, name: localizedField(one(c.products)!, 'name', locale) } : null,
     campaign: one(c.campaigns) ? { id: one(c.campaigns)!.id, name: one(c.campaigns)!.name } : null,
+    pillar: one(c.pillars) ? { id: one(c.pillars)!.id, name: localizedField(one(c.pillars)!, 'name', locale), color: one(c.pillars)!.color as PillarColor } : null,
     status: c.status as ContentStatus,
     shootDate: c.shoot_date,
     publishDate: c.publish_date,

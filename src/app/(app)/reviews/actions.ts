@@ -45,7 +45,9 @@ export async function createReview(raw: unknown): Promise<ActionResult<string>> 
   if (!canManage(c.role)) return fail('forbidden');
 
   const { data, error } = await c.sb.from('reviews')
-    .insert({ ...parsed.data, organization_id: c.orgId, created_by: c.user.id, status: 'draft' }).select('id').single();
+    // `answers` is NOT NULL with no DB default — starts empty, same "no answers yet"
+    // representation `updateReview` already uses below (notes === null ? {} : { notes }).
+    .insert({ ...parsed.data, organization_id: c.orgId, created_by: c.user.id, status: 'draft', answers: {} }).select('id').single();
   // 23505: unique (organization_id, type, period_start) — a review for this period already exists.
   if (error || !data) return fail(error?.code === '23505' ? 'invalid' : error?.code === '42501' ? 'forbidden' : 'failed');
   refresh();

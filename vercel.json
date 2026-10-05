@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/notifications-fanout",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/auto-reorder-tasks",
+      "schedule": "0 22 * * *"
+    }
+  ]
+}

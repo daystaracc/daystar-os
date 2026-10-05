@@ -15,7 +15,7 @@ Source of truth for the strategy: **《DAYSTAR — 100M PLAYBOOK》** (14 chapte
 
 ---
 
-## 0. Current state — read this first (updated 2026-09-15)
+## 0. Current state — read this first (updated 2026-10-02)
 
 Sections 1–10 are the product spec and remain the target. This section is where the
 build actually is. It is written for someone picking this up cold.
@@ -36,24 +36,26 @@ Accounts: `kaistarkai77@gmail.com` (KAi, founder) · `lucasmccollister@gmail.com
 | Tasks `/tasks` — list · kanban (drag-drop) · calendar, full CRUD, recurrence, filters, detail panel | typechecks clean (2026-09-13), code-reviewed clean (2026-09-16) — one real bug found and fixed (§ below); everything else checked out |
 | Revenue `/revenue` — KPI cards, period switcher (today/7d/30d/month/quarter/year), table of `sales_daily` entries, add/edit/delete drawer | **live-verified 2026-09-15** — real order history imported (6,772 orders), numbers match the pre-verified parse |
 | Revenue order-import wizard `/revenue/import` — Showmore order CSV → preview (diffed new/changed/unchanged) → confirm | **live-verified 2026-09-15** — see above; hit and fixed a real body-size-limit bug along the way (§ below) |
-| Projects `/projects` — list (health/status/progress/owner/deadline), detail page (progress, stats, notes, linked tasks, members), create/edit drawer, member add/remove | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| Goals `/goals` — goals → objectives → key results (OKR hierarchy), grouped list by level, detail page with inline key-result progress updates, create/edit/delete at all three levels | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Projects `/projects` — list (health/status/progress/owner/deadline), detail page (progress, stats, notes, linked tasks, members), create/edit drawer, member add/remove | **live-verified 2026-10-01** — list and detail render correctly against real data (health scores, progress bars, linked tasks) |
+| Goals `/goals` — goals → objectives → key results (OKR hierarchy), grouped list by level, detail page with inline key-result progress updates, create/edit/delete at all three levels | **live-verified 2026-10-01** — grouped list and objective/key-result hierarchy render correctly against real data |
 | Products `/products` — catalogue list (tier/status/stock/margin), detail page with variants, per-variant stock counting, create/edit/delete | **live-verified 2026-09-14** — real catalogue imported (102 products, 321 variants); code-reviewed 2026-09-15 to confirm no stale-seed assumptions |
 | Inventory `/inventory` — read-only dashboard: valuation, stock-status breakdown, reorder-needed list linking into Products | **live-verified 2026-09-14** (see Products above) — reads the same real `inventory` rows, no caps |
-| Content `/content` — flat pipeline list (idea → … → published), weekly publishing-pace card, create/edit/delete, optional **campaign link** (added 2026-09-16) | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| Company health `/company/health` — 11 fixed systems scorecard (score, owner, bottleneck, next action, score history), edit-only | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| SOPs `/sops` — document library across 11 fixed categories, list + detail page, hand-versioned | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| Reviews `/reviews` — weekly/monthly WBR/MBR: create by period, wins/problems/decisions/priorities, manual metrics log grouped by section, mark complete/reopen, list + detail page | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| Marketing `/marketing` — Campaigns / Ad spend / Creators in one tabbed screen (`?tab=`); campaign daily metrics, ad spend log with real ROAS/CAC/CPM/CTR/CVR/**MER** (added 2026-09-16), creator roster with a manual content/sales log | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Content `/content` — list/calendar/kanban over a 4-stage status (idea/planned/shot/posted, collapsed from 8 by migration 0012) + **pillars** as the main categorization axis (added 2026-10-02, replacing the old stage-as-category overload), optional product/campaign link, dark/gold `.content-theme` skin | **live-verified 2026-10-02** — migration 0012 run, `db:types` regenerated for real, pillar create/assign/filter and the 4-stage status pipeline all click-tested against the live database (not just typechecked). See the 2026-10-02 entry below for the full trail and the one cleanup item left (a throwaway test pillar) |
+| Company health `/company/health` — 11 fixed systems scorecard (score, owner, bottleneck, next action, score history), edit-only | **live-verified 2026-10-01** — all 11 systems render correctly with real owners (Lucas/KAi/Alexander), status, next actions, last-reviewed dates. This was the last screen in the whole app still marked "not yet click-tested" — the sweep is now complete |
+| SOPs `/sops` — document library across 11 fixed categories, list + detail page, hand-versioned | **live-verified 2026-10-01** — list renders correctly against real data (6 SOPs across categories/statuses: 生效中/待審閱/草稿) |
+| Reviews `/reviews` — weekly/monthly WBR/MBR: create by period, wins/problems/decisions/priorities, manual metrics log grouped by section, mark complete/reopen, list + detail page | **live-verified 2026-10-01** — real draft weekly review (週覆盤 2026-08-31 – 2026-09-06, 草稿) renders correctly |
+| Marketing `/marketing` — Campaigns / Ad spend / Creators in one tabbed screen (`?tab=`); campaign daily metrics, ad spend log with real ROAS/CAC/CPM/CTR/CVR/**MER** (added 2026-09-16), creator roster with a manual content/sales log | **live-verified 2026-10-01** — renders correctly against real data |
 | CRM `/crm` — Flows (12 fixed automations) / Monthly metrics / Customers in one tabbed screen; founder-only | **live-verified 2026-09-15** — 5,404 real customers imported; Customers tab rebuilt with pagination + search (was hard-capped at top 200, see below) |
-| Finance `/finance` — Monthly management P&L / Expenses in one tabbed screen; founder-only, contribution-margin math | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
-| Team `/team` — directory + live workload (open/overdue task counts) for every active member; edit-only, founder-only writes, open to all for read | typechecks clean (2026-09-14), code-reviewed clean (2026-09-15) — not yet click-tested |
+| Finance `/finance` — Monthly management P&L / Expenses in one tabbed screen; founder-only, contribution-margin math | **live-verified 2026-10-01** — renders correctly against real data |
+| Team `/team` — directory + live workload (open/overdue task counts) for every active member; edit-only, founder-only writes, open to all for read | **live-verified 2026-10-01** — renders correctly against real data |
 | Settings `/settings` — organization info + data/import hub | **new 2026-09-15** — this page didn't exist; the sidebar link 404'd for every founder until now. See below |
 | Customer import — `/revenue/import` now also populates `customers` from the same file, phone numbers hashed and never stored | **live-verified 2026-09-15** — see Revenue above; hit and fixed a real `ON CONFLICT` bug in migration `0008` (§ below, fixed by `0009`) |
-| Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested |
-| Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | typechecks clean (2026-09-14), code-reviewed clean (2026-09-16) — not yet click-tested. Table has no populate path yet (no fan-out/cron) |
+| Global search `⌘K` — searches nav + tasks/projects/goals/products/content/SOPs | **live-verified 2026-10-01** — opens correctly, returns real cross-module results (tasks, products, content) for a live query, fast, no debounce issues |
+| Notifications `/notifications` — read + mark-read UI, unread badge on the bell icon | **live-verified 2026-10-01** — page renders correctly, showed the expected empty state before the fan-out below existed |
+| Audit Log `/audit-log` — **new 2026-10-02**: read-only, paginated (50/page) feed over `activity_logs`, filterable by entity type (fixed 12-value set — tasks/projects/inventory movements/revenue entries/targets/monthly finance/key results/health scores/the 4 cron-written types), founder+manager via `can.viewAuditLog` (mirrors `activity_logs_select` RLS exactly). The last remaining Phase 6 item — see the 2026-10-02 entry below | **written, syntax-checked and i18n-parity-verified in this sandbox (no npm registry access) — not yet run through real `tsc`, not yet click-tested.** Needs `npm run typecheck`, `npm run test:calc`, `npm run lint`, and a click-test once Lucas is back at the keyboard |
+| Notifications fan-out — **new 2026-10-01**: `GET /api/cron/notifications-fanout`, a Vercel Cron job (daily, `vercel.json`) that finally writes rows into the `notifications` table, reusing `evaluateRules()` (the exact same logic behind Overview's "What needs attention") against a narrower, admin-client-gathered snapshot. Covers revenue pace, hero-stock, overdue tasks, content/ad-spend stalls, stale CS — not yet project health, key results, AOV/CVR, reviews, or the systems score (see the route's own doc comment for why and how to extend it). **Written, not yet typechecked, not deployed** — needs `npm run typecheck`, a `CRON_SECRET` set in Vercel, the `git push` that's already pending for the hydration fix, and one manual `curl` test before the first real cron run. See the 2026-10-01 entry below |
 | Operations `/operations` — **new 2026-09-21**: Daily log (`operations_daily`, upsert-by-day) / CS cases (`customer_service_cases`, full CRUD with status workflow) in one tabbed screen (`?tab=daily` / `?tab=cs`). See § below — this page didn't exist; the sidebar link 404'd since the app's first session |
-| Showmore order sync — **new 2026-09-21**: live webhook (`POST /api/webhooks/showmore`) + manual backfill panel on `/revenue/import` pull orders straight from Showmore's API into `sales_daily`/`product_sales_daily`, no CSV needed. Sandbox-verified only (86/86 tests incl. 10 new); **not yet deployed or click-tested live** — needs migrations 0010/0011 applied, `SUPABASE_SERVICE_ROLE_KEY` added to Vercel, and the webhook URL registered on Showmore's side. See § below |
+| Showmore order sync — **daily automated scraping sync, fixed and live-verified 2026-10-01** (superseded the 2026-09-21 webhook/API plan below — Lucas declined the paid Showmore API plan, so this is a browser-scraping fallback hitting the admin panel directly). `SHOWMORE_SYNC_SECRET` confirmed set in Vercel; `POST /api/internal/showmore-daily-sync` manually exercised end-to-end (91 orders, NT$99,853, Sept 27–Oct 1) and confirmed live on `/revenue`. **Real remaining gap: the *daily scheduled* run has been silently failing every day for a week** — it reports `SUCCEEDED` but can't get live browser/device access without a same-day human approval (`no_signed_approval`, discovered via `fire_trigger`). Three options on the table for Lucas: (a) approve the daily run manually each day, (b) keep doing periodic manual syncs like this one, (c) revisit the paid Showmore API plan to remove the human-approval dependency entirely. See § below for the original webhook/API design (not pursued, plan declined) |
 
 > **✅ Decision made 2026-09-16: email only, not phone.** Asked directly ("email
 > only" / "add phone + email" / "keep as-is"), Lucas picked **email only**.
@@ -82,6 +84,259 @@ dead top-bar controls (search, the bell) both go somewhere real.**
 import have both run successfully against Lucas's real data (§ below). What's
 left: click-testing the screens still marked "typechecks clean, not yet
 click-tested" in the table above — nothing else is currently blocked on Lucas.
+
+**2026-10-01: Showmore sync fixed and diagnosed, a real global hydration bug found and
+fixed, and the full click-testing sweep finished.**
+
+*Showmore sync.* The `SHOWMORE_SYNC_SECRET` Lucas added to Vercel is correctly wired —
+confirmed by getting a `400` ("no days provided") instead of a `401` from
+`/api/internal/showmore-daily-sync`. Ran the full browser-scraping-and-POST flow by hand
+(Showmore admin panel → scrape 5 days of orders → POST to the sync endpoint) and got a
+clean `200`, 91 orders, NT$99,853 for Sept 27–Oct 1, confirmed live on `/revenue`. The
+real finding: the *daily scheduled* task has been reporting `SUCCEEDED` every day for a
+week while silently doing nothing, because the unattended run can't get live
+Chrome/device access without a same-day human approval (`no_signed_approval` — found by
+manually firing the trigger and reading the actual rejection reason, not from any log
+Lucas would normally see). This is a structural gate, not a bug in the sync code itself.
+Options for Lucas: approve the run manually each day, keep doing periodic manual syncs
+(what was done today), or go back to the paid Showmore API plan to remove the
+human-approval dependency. A 12-day historical gap (Sept 15–26) was left unfilled after
+two attempts hit Showmore's known date-filter bug (see "Traps that cost time in earlier
+sessions" below) — low priority, cosmetic, not blocking anything.
+
+*React #418 hydration bug (new, previously undetected).* Found live via the browser
+console on production — fires on every single page load, project-wide, including every
+page click-tested below. Root cause: `TopBar.tsx` (`'use client'`) called `new
+Date().toLocaleDateString(...)` directly in its render body to show today's date. That
+runs twice — once during SSR on the server's clock/timezone, once during hydration on
+the browser's — and the two never agree for a Taipei user (UTC+8) against a Vercel
+function that's presumably UTC. Fixed by computing `today` once, server-side, in
+`(app)/layout.tsx` (a pure server component — safe to call `Date` there, it runs once
+per request) and passing it into `TopBar` as a plain string prop instead. **This fix is
+written to Lucas's local `daystar-os` folder only — it has not been committed to git,
+pushed, or deployed.** `git add`/`commit`/`push` from that folder is the next step;
+until then production still throws #418 on every load (confirmed still reproducing
+during this session's click-testing, console logs captured below). A second console
+error — `TypeError: Cannot read properties of null (reading 'parentNode') at $RS
+(/tasks:8:2011)` — was chased down further on a second pass: it reproduces reliably on
+`/tasks` (not a one-off), but `/tasks` itself still renders and works correctly despite
+it (confirmed again via a full page read). `$RS` at that location is Next.js's own
+minified inline Suspense-streaming helper, not app code, and it fires right alongside
+#418 every time — the likely explanation is that it's a secondary symptom of the same
+hydration mismatch (React's streaming insertion script loses track of a DOM node once
+hydration has already failed once on the page), not a second, independent bug. No source
+maps were available to confirm this for certain from a production bundle. Worth a 10-
+second console check after the #418 fix is deployed — if it disappears along with #418,
+that confirms it; if it's still there, it's a real second issue worth a proper look.
+
+*Click-testing sweep finished.* Every screen previously marked "not yet click-tested" in
+the table above was opened against the live site with real data and confirmed correct:
+Projects, Goals, Content, SOPs, Reviews, Marketing, Finance, Team, Global search (⌘K —
+opens correctly, live cross-module results for a real query), and Notifications (correct
+expected-empty state, confirming the gap is "no fan-out/cron yet," not a rendering bug).
+Company health `/company/health` is the one screen still not click-tested.
+
+**2026-10-01, continued: Company Health click-tested (the sweep is now 100% complete),
+and a first real automation engine built.** Company Health renders correctly — all 11
+systems, real owners, real next actions. That closes out every screen that was ever
+marked "not yet click-tested" in the table above.
+
+With the click-testing done, built `GET /api/cron/notifications-fanout` — the first
+piece of actual automation in this codebase, and the direct answer to the Notifications
+row that's sat at "UI built, nothing populates it" since 2026-09-14. Deliberately built
+as a **plain Vercel Cron job**, not a Claude-scheduled task: the Showmore sync's
+scheduled task drives a real browser and turned out to silently need same-day human
+approval it often doesn't get (see above) — a Vercel Cron hitting a Next.js route has no
+such dependency, it just runs on Vercel's own infrastructure or fails loudly in Vercel's
+own cron logs. Worth remembering as the template for any future "fully automated" piece
+of this app: prefer a cron route over a Claude-scheduled browser task whenever the work
+doesn't actually require a real browser.
+
+The route reuses `evaluateRules()` from `lib/calculations/rules.ts` completely
+unchanged — the same function that already drives Overview's "What needs attention" —
+so the business rules themselves have exactly one definition. What's new is only the
+input-gathering, done via the service-role admin client (no user session exists for a
+cron caller) rather than `getCommandCenter`'s session-scoped one. Scope is deliberately
+narrower than the full Overview snapshot for v1: revenue pace, hero-product stock,
+overdue tasks, a content-output stall, an ad-spend stall, and stale CS cases — the rules
+that were actually firing on the real Overview page today. Project health, key results,
+AOV/CVR-vs-target, reviews-due and the systems score are left for a later pass (the
+route's own comment explains exactly what to add and why it wasn't done now, rather than
+risk a second, drifting half-copy of the full ~20-query snapshot). Severity is filtered
+to critical/high only for v1 — medium/low stay Overview-only, to keep the bell icon for
+things worth an actual interruption. Dedup is per (recipient, rule, entity): an
+unresolved issue won't re-notify every day while the last notification about it is still
+unread, but will again once it's marked read if the issue is still there.
+
+Also added: `vercel.json` (didn't exist before — this is the first cron config in the
+repo) scheduling the route daily at 23:00 UTC / 07:00 Taipei, and `CRON_SECRET` in
+`.env.example` with setup steps (Vercel's cron trigger sends it automatically as a
+Bearer token once the env var is set — same shape as `SHOWMORE_SYNC_SECRET` but Lucas
+generates this one himself, Claude didn't).
+
+**Not yet typechecked, not yet deployed — same bar as everything else written in this
+session with no shell access on Lucas's machine.** Before trusting it: `npm run
+typecheck`, set `CRON_SECRET` in Vercel, `git push` (it'll go out with the pending
+hydration fix), and one manual `curl` against the route with the secret to confirm it
+writes real rows before waiting for the first scheduled run.
+
+*Two old open decisions, re-surfaced from `TOMORROW_2HR_GUIDE.md` (2026-09-18) — still
+unresolved, still genuinely Lucas's call, not something to build blind.* Re-read that
+file today while looking for Lucas's own stated priorities rather than guessing. Two
+items in it were flagged then as "needs you to decide" and still are:
+
+1. **CRM monthly metrics (repeat rate, retention revenue) are hand-typed into
+   `crm_metrics_monthly` every month** (`lib/data/crm.ts` confirms: that table is a
+   generic manually-entered table, no computation). The `customers` table only stores
+   running totals per customer (`orders_count`, `total_spent`, `first_order_at`,
+   `last_order_at` — confirmed in `0001_schema.sql`), not individual orders, so there's
+   no per-month data to compute from today. Three real options, in increasing order of
+   completeness vs. effort: **(a)** leave it manual — zero risk, status quo; **(b)**
+   compute monthly new/returning/repeat-revenue automatically whenever the full CSV
+   import wizard runs (it already reads order-level rows in `customerAggregation.ts`
+   on the way in, just doesn't bucket them by month afterward) — covers bulk imports
+   only, not the lightweight daily Showmore sync; **(c)** add a real
+   `customer_orders`-style ledger table and have both import paths write to it — the
+   only path to true month-by-month automation, but it means reversing a deliberate
+   privacy decision already made for the daily sync (`showmore-daily-sync`'s own doc
+   comment: "No line items, no customer PII — just `{date, orders, gross, refunds}`"),
+   not just adding a column. That trade-off is Lucas's to weigh, not something to
+   change unilaterally.
+2. **Reviews' metrics are manually logged each week/month.** Auto-pulling them needs
+   Lucas to say which numbers belong in a weekly vs. a monthly review — a judgment call
+   about how he actually runs reviews, not something inferrable from the schema.
+
+Neither is blocking anything today — flagging them here so the next time Lucas has five
+minutes to decide, the options are already laid out instead of needing to be rediscovered.
+
+*Stale duplicate folder noticed, not touched.* `C:\Users\user\Desktop\Daystar-OS` (no
+underscore) is a second connected folder with its own copy of this project, untouched
+since 2026-09-05 — it predates and is unrelated to all work done in
+`DAYSTAR_OS_foundation\daystar-os` since. Worth Lucas's own cleanup at some point so it
+doesn't get confused for the live repo; nothing was changed or deleted there.
+
+**2026-10-02: first automation-engine slice (auto-reorder tasks), then Content taken
+from "just restyle" to a real schema change (pillars + a collapsed 4-stage status) at
+Lucas's explicit request.**
+
+*Auto-reorder tasks (`GET /api/cron/auto-reorder-tasks`, daily 22:00 UTC / 06:00
+Taipei, `vercel.json`).* The second piece of actual automation after the notifications
+fan-out above: mirrors Inventory's reorder-needed detection and creates a `tasks` row
+per product/variant that needs restocking, deduped via an `auto-reorder` label plus a
+`[auto-reorder-key: productId:variantId]` marker in the description so re-runs don't
+spam duplicates. **Typechecks clean** — confirmed via Lucas's own `npm run typecheck`
+paste, same run that also covered the Content restyle files below. Not yet
+click-tested against a real reorder-needed product.
+
+*Content: visual restyle, then — on Lucas's own explicit second ask — a real data-model
+change.* Lucas pasted a standalone artifact prototype ("Daystar Content Calendar": dark/
+gold theme, a `pillars` taxonomy, a 4-stage idea/planned/shot/posted pipeline with
+glyphs ○◐●✓) and said he wanted it built in. First answer, asked directly: **"just
+restyle — no data model change."** Built exactly that — a `.content-theme` dark/gold
+CSS skin (`content/layout.tsx`, `globals.css`) over the List/Calendar/Kanban/drawer,
+the real 8-stage pipeline and all fields untouched. Committed, byte-verified, and
+**typechecks clean** (same Lucas-run `npm run typecheck` as above).
+
+Lucas then explicitly reversed course mid click-test: **"Yes — make it exactly like the
+artifact"** — collapse the real 8-stage `content.status` down to idea/planned/shot/
+posted, and add a `pillars` table as the main categorization axis ahead of
+content_type/platform, replacing (not adding to) how Content categorizes things today.
+This is `supabase/migrations/0012_content_pillars.sql` plus app-code changes across
+`lib/content/constants.ts`, `lib/data/content.ts`, `content/actions.ts` (new
+`createPillar`/`updatePillar`/`deletePillar`, manager-or-above create/rename,
+founder-only delete — mirrors `campaigns`), the two other `'published'`→`'posted'`
+literal sites (`commandCenter.ts`, `notifications-fanout/route.ts`), both i18n
+dictionaries, and reworked `ContentCalendar`/`ContentBoard` (pillar color for identity,
+a status glyph instead of the old 8-stage color ramp) plus a new `PillarManager.tsx`
+("Manage pillars" panel) and pillar filter chip row.
+
+**Update, same day: migration run, typed, tested, and click-verified — with two real
+findings along the way, one fixed, one still open.** Lucas ran migration 0012 by hand
+in the Supabase SQL editor (succeeded, no rows returned) and `npm run db:types`
+(regenerated `src/types/database.ts` for real — 91KB, replacing the hand-patched
+version this entry originally shipped with). `npm run test:calc` came back **121/121
+green**. `npm run lint` came back clean (2 pre-existing warnings, unrelated to this
+change — `postcss.config.mjs` and `WebsiteTraffic.tsx`).
+
+`npm run typecheck` surfaced 3 errors — **none in the pillars/status-collapse files
+themselves**; all three were pre-existing bugs the hand-patched `database.ts` had been
+quietly masking until the real schema types replaced it:
+
+1. **`reviews.actions.ts` — `createReview`'s insert was missing `answers`**, a NOT NULL
+   JSON column with no DB default. Fixed same session: insert now sends `answers: {}`,
+   matching the empty-state `updateReview` already uses a few lines down
+   (`notes === null ? {} : { notes }`). Committed, byte-verified. **Fixed.**
+2. **`marketing/actions.ts` — `creators.cost` is `NOT NULL DEFAULT 0` in the live
+   database**, not nullable as `0001_schema.sql` documents (`cost numeric, -- NULL =
+   unknown; never treat as 0`). Confirmed directly against the live DB (`information_schema.columns`):
+   `is_nullable = NO`, `column_default = 0`. This is schema drift — the column
+   predates all migrations currently tracked in `supabase/migrations/`, so nothing
+   in this repo explains when or how it became NOT NULL. **The data already shows the
+   failure mode the comment was written to prevent**: of 6 creators total, 0 have a
+   null cost and 5 sit at cost = 0 — there's no way from the data alone to tell which
+   of those 5 are real $0 collabs versus creators whose cost was simply never entered.
+   **Not fixed — left for Lucas.** Two decisions, not one: (a) whether to migrate the
+   column back to nullable (straightforward — drop the NOT NULL and the default); (b)
+   what to do with the 5 existing cost=0 rows, which depends on Lucas actually knowing
+   which of his 6 creators had a real $0 cost versus an unentered one. No migration
+   file written for this yet — deliberately, since (b) needs his input first.
+
+Then **live click-tested** against the running dev server (not just typechecked): opened
+`/content`, created a real pillar through the new "Manage pillars" panel, confirmed it
+appeared in the filter chips and the manager list, opened a content item's edit drawer,
+assigned the pillar, saved, reopened the drawer fresh and confirmed it stuck. The
+4-stage status pipeline (構想/規劃中/已拍攝/已發布) renders and is selectable on every
+row. No console or module-resolution errors. One deliberate test artifact is still
+sitting in the live database: a pillar named **"Claude test pillar (delete me)"**,
+created to verify the create/assign flow end-to-end. Deleting it needs a click Lucas has
+to make himself — `PillarManager.tsx`'s delete button goes through a native
+`window.confirm()` (`remove()`, line 76), which this session's browser automation is
+deliberately barred from clicking through (see the new Traps entry below). Open
+"管理內容支柱" → click the trash icon next to it → confirm. That delete will also
+auto-clear it from the one content item it was test-assigned to, via the `pillar_id`
+column's `ON DELETE SET NULL` — nothing else to undo by hand.
+
+No real pillars are seeded — Lucas hasn't said what his actual content pillars should
+be named, so the "Manage pillars" panel is otherwise empty and he creates his own
+whenever he's ready.
+
+**2026-10-02, later: Audit Log built — the last open item in Phase 6 Intelligence,
+done autonomously while Lucas was away.** With the day's blocking items (migration,
+db:types, the live click-test) all finished and nothing left that needed his input,
+this was picked specifically because it needed no business decision: `activity_logs`
+(migration 0001) already had a manager-or-above select policy and, as of 0011
+(2026-09-21), a matching insert policy — the table has been filling up since this
+session's very first cron jobs went in, with no screen to read it back. `can.viewAuditLog`
+(`permissions.ts`) mirrors `activity_logs_select` RLS exactly, same deterministic shape
+as `viewFinance`/`managePillars` — no "spec vs. RLS" judgment call needed, unlike
+`viewReviews`/`viewMarketing`/`viewCRM`.
+
+Built: `lib/data/auditLog.ts` (`getActivityLog`, 50-row pages, optional entity-type
+filter — mirrors `getCustomersPage`'s exact pagination shape from `lib/data/crm.ts`),
+`app/(app)/audit-log/page.tsx` (plain server-rendered list + `<Link>`-based pagination/
+filtering, no client component needed — nothing on this screen is interactive beyond
+navigation), a new `auditLog` nav entry (`lib/nav.ts`, System group, founder+manager),
+and the full `auditLog.*` i18n block in both dictionaries (title/subtitle/empty/
+loadFailed/pagination copy + a label for each of the 12 fixed `entity_type` values the
+trigger function and the four direct-insert cron/sync routes can produce — enumerated
+by hand, the same "fixed known set" shape as Company Health's 11 systems, since
+PostgREST has no clean `DISTINCT` to query instead).
+
+One real constraint worth remembering: `activity_logs.summary` is built **in Postgres**,
+inside `log_activity()` (the trigger function, `0001_schema.sql`) — it's always English
+text regardless of the viewer's locale, because the database has no notion of the
+request's language. Rendered as-is rather than re-translated, same restraint already
+applied to Showmore's raw CSV warnings elsewhere in this app.
+
+**Honest status: written and i18n-parity-verified for real (actually executed the same
+deep-key-comparison check used throughout this session — 1131 keys each, zero diff), the
+new `permissions.test.ts` case for `can.viewAuditLog` actually run too (patched import
+extension in a scratch copy only, since this sandbox's `node --experimental-strip-types`
+needs one and `tsx` isn't installable here — 21/21 passing, not just read by eye). Every
+`.ts` file syntax-checked; `page.tsx` could only be read carefully (JSX isn't supported
+by Node's type-stripping). None of this is real `tsc`, real `test:calc`, or a click-test
+against a running app — those still need Lucas's own machine, same as the pillars work
+above.** Added to tomorrow's guide.
 
 **2026-09-16: the whole build was never in git until today, and the first
 `git push` since didn't reach GitHub.** `git status` on Lucas's machine showed
@@ -1029,6 +1284,19 @@ file parses to exactly 320 rows / 102 products. This parser still needs writing 
   `product_variants.attributes`, a `z.record(z.string(), z.string())` with no key
   length, value length, or entry-count limit — the one exception in an otherwise
   consistently-bounded codebase. Fixed same day, see the dedicated note below.
+- 2026-10-02: a `next dev` server already running when new files land on disk (e.g.
+  files written by Claude through the device bridge rather than through a normal
+  editor save) can cache a "module not found" for one of those files and keep
+  reproducing it across every subsequent recompile — the file is genuinely on disk,
+  correct bytes, correct path, but webpack's resolver never retries it. Symptom:
+  `Module not found: Can't resolve '@/...'` repeating in the browser console even as
+  "Compiled in Xms" keeps succeeding for everything else. Fix is a plain restart
+  (Ctrl+C, `npm run dev` again) — no code change needed, don't go looking for one.
+- A delete button that calls `window.confirm()` (e.g. `PillarManager.tsx`'s `remove()`)
+  cannot be click-tested through Claude's browser automation — triggering or dismissing
+  a native browser dialog is off-limits by design, so the click silently does nothing
+  from that side. These need a human click to verify, same as any destructive action
+  gated by a real confirm dialog.
 
 **Marketing → Revenue MER connection (built 2026-09-16).** `adMetrics()` in
 `lib/calculations/finance.ts` already accepted an optional `totalRevenue` param and
@@ -1326,7 +1594,7 @@ Showmore's 串接文件 settings page.
 | **100M math** — NT$100M/yr = 137 orders/day at AOV 2,000; Revenue = Traffic × CVR × AOV × Repeat | Editable targets per metric per period; a pacing engine that turns any target into *ahead / on pace / behind*; the revenue ladder as the 100M Journey | `targets`, `computePacing()`, `/overview`, `/goals/journey` |
 | **Stages** — 1M → 2.5M → 5M → 8.33M/month; checkpoint: stable NT$2.5M/month for 3 months by 2027 Q4; 100M annualized by 2028 Q4 | Journey milestones with target dates, requirements, bottlenecks; each stage shows a different company (focus list) | `targets` (`monthly_revenue`, `annual_revenue`), Journey page |
 | **Hero Products** — 5–10 products that carry the brand: stable stock, KV, 20+ videos each, reviews, bundle/upsell | Product master with `is_hero`, tier (Entry/Core/Premium/High Ticket); Hero view with revenue share, weeks of supply, content count, margin; alerts on low stock / decline | `products`, `product_sales_daily`, `content.product_id`, `/products/hero` |
-| **Content engine** — 20–40 pieces/week, launch engine T‑14 … D+7, top content visible | Content OS: calendar, pipeline (Idea → … → Published), metrics; weekly target with pacing; publishing consistency | `content`, `content_metrics`, `targets.weekly_content`, `/content` |
+| **Content engine** — 20–40 pieces/week, launch engine T‑14 … D+7, top content visible | Content OS: calendar, pillars (categorization) × status (Idea → Planned → Shot → Posted, collapsed to 4 stages 2026-10-02), metrics; weekly target with pacing; publishing consistency | `content`, `pillars`, `content_metrics`, `targets.weekly_content`, `/content` |
 | **AOV stack** — near‑term NT$1,300–1,500, long‑term 1,800–2,300+ via bundles, threshold, upsell, tiers | AOV KPI vs target and MoM; AOV KR; rule when AOV < 90% of target or declines ≥5% | `sales_daily`, `key_results`, rules `aov_*` |
 | **CRO / PDP 12** — CVR 2–3%+ | CVR from sessions and orders; rule when CVR < 80% of target; CRO project | `sales_daily.sessions`, rule `cvr_below_target` |
 | **Retention** — repeat revenue 25–35%+, 12 CRM flows, membership | CRM module with the 12 flows (status, channel, revenue); monthly repeat metrics; repeat‑revenue KR | `crm_flows` (12 fixed keys), `crm_metrics_monthly` |
@@ -1411,7 +1679,7 @@ organizations ─┬─ departments
                ├─ sales_channels ─ sales_daily (net_revenue generated)
                ├─ financial_monthly, expenses
                ├─ campaigns ─ campaign_metrics ; ad_spend_daily
-               ├─ content ─ content_metrics ; creators ─ creator_content
+               ├─ content ─ content_metrics ; pillars (2026-10-02) ; creators ─ creator_content
                ├─ customers, crm_flows (12 keys), crm_metrics_monthly
                ├─ operations_daily, customer_service_cases
                ├─ business_systems ─ system_scores (history)
@@ -1435,6 +1703,7 @@ organizations ─┬─ departments
 | Goals, objectives, key results, projects | read/write | read/write | read |
 | Tasks | all | all | create; edit own / assigned |
 | Content | all | all | create; edit own |
+| Pillars (2026-10-02) | all | create/rename/recolor | read |
 | Products, suppliers, inventory config | all | all | read |
 | Inventory movements | insert | insert | insert (append‑only for everyone) |
 | Sales daily, ad spend | all | all | — |
@@ -1549,7 +1818,7 @@ Map to the spec's phases. Definition of done for every module: works end‑to‑
 | **3 Commerce** | Revenue (entry, charts), Products, Hero Products, Inventory (movements, counts, ABC, alerts) | **in progress** — order history imported to `sales_daily` (Jan–Aug 2026, real); parser tested; product import blocked on migrations 0005/0006. Screens not built. |
 | **4 Growth** | Content OS (calendar, pipeline, library, metrics), Marketing (campaigns, paid, creators), CRM | schema + calculations ready · screens: next |
 | **5 Operations** | Operations, Finance (management P&L), Team, Reviews (WBR/MBR), SOPs | schema ready · screens: next |
-| **6 Intelligence** | Attention rules, business health, notifications fan‑out (cron), global search, audit log screen | rules engine ✔ (incl. the three stall rules below) · dismissals ✔ · triggers ✔ · global search ✔ and notifications *read/mark-read* UI ✔ (both 2026-09-14, see §0) · notifications fan-out (the cron that would actually populate the table) and the audit log screen: still next |
+| **6 Intelligence** | Attention rules, business health, notifications fan‑out (cron), global search, audit log screen | rules engine ✔ (incl. the three stall rules below) · dismissals ✔ · triggers ✔ · global search ✔ and notifications *read/mark-read* UI ✔ (both 2026-09-14, see §0) · notifications fan-out ✔ (2026-10-01) · **audit log screen ✔ (2026-10-02, see §0)** — this was the last item in Phase 6, now all built |
 | **7 Polish** | mobile bottom nav, animations, performance, accessibility pass, empty/error states, CSV import wizard | mobile layout verified at 360/390px ✔ · empty/loading/error states on Tasks ✔ · ⌘K done (§0) · bottom nav, import wizard: next |
 
 Three rules were added beyond the table in §5 after the July→August 2026 drop

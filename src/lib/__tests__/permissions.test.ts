@@ -36,7 +36,11 @@ test('can.viewMarketing: founder and manager (matches spec/nav, not the more per
   assertRoles(can.viewMarketing, ['founder', 'manager'], 'viewMarketing'));
 test('can.viewCRM: founder only — the strictest gate, matching customers_all RLS', () =>
   assertRoles(can.viewCRM, ['founder'], 'viewCRM'));
+test('can.managePillars: founder and manager (matches pillars_insert/pillars_update RLS, migration 0012)', () =>
+  assertRoles(can.managePillars, ['founder', 'manager'], 'managePillars'));
 test('can.viewSettings: founder only', () => assertRoles(can.viewSettings, ['founder'], 'viewSettings'));
+test('can.viewAuditLog: founder and manager, matching activity_logs_select RLS exactly', () =>
+  assertRoles(can.viewAuditLog, ['founder', 'manager'], 'viewAuditLog'));
 
 test('homeFor: members land on My Work, everyone else on Overview', () => {
   assert.equal(homeFor('member'), '/my-work');

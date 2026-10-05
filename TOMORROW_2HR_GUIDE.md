@@ -1,104 +1,93 @@
-# Your session plan — 2026-09-18
+# Your session plan — 2026-10-02
 
-Rewritten today for the session you said you'd have later. Built around one
-idea: the highest-value thing you can do isn't reading more of my notes,
-it's getting real code live and then clicking through it, because that's
-what turns up the bugs and decisions that actually need you. Everything
-here is ordered so the first 10 minutes unlock everything after it.
+Rewritten tonight, right after Content's pillars/status-collapse change went live and
+got click-tested, then updated again after a second, unprompted pass: with nothing
+left that needed your input, I built the Audit Log screen (`/audit-log`) — the one
+remaining Phase 6 item, no business decision required, so it was safe to just do.
+It's written and i18n-checked but **not yet click-tested against a real server**,
+unlike the pillars work. Added as item 0 below since it's new and needs eyes on it
+before anything else really.
 
-I checked the git push again right before writing this — still exactly
-where it's been for two days: your commit (`c96460c`) never reached
-GitHub (`origin/main` is still the old `52a316e`). So step 1 isn't
-optional, it's the gate for the whole session.
-
----
-
-## 1. Finish the git push (5–10 min) — do this first, nothing else matters until it's done
-
-1. Open a terminal in `Desktop\DAYSTAR_OS_foundation\daystar-os`.
-2. Run `git push`.
-3. If it hangs with no output: a Windows Git Credential Manager sign-in
-   window is almost certainly open somewhere — check behind other windows
-   and in the taskbar, sign in. That's the most likely reason it never
-   finished two days ago.
-4. If it fails outright with an error, paste me the exact error — don't
-   troubleshoot it yourself, that's a 30-second thing for me to read.
-5. Once it succeeds: watch the Vercel dashboard (or wait ~1 min), then
-   reload **https://daystar-os.vercel.app** and log in. You should see
-   everything built over the last two days for the first time — MER on
-   the Marketing screen, the Campaign field on Content, and so on.
-
-I still can't do this step myself — it needs your GitHub login.
+Otherwise, short list — most of today's work is actually done and verified, not just
+written. What's left is almost entirely things only you can do: one click-test, one
+10-second cleanup, two naming/judgment calls, and one schema decision that touches
+real data. Nothing here is urgent or blocking; do as much or as little as you have time
+for.
 
 ---
 
-## 2. Click through the screens that have never been touched against live data (the main event — budget most of your time here)
+## 0. Click-test the new Audit Log screen (5 min, new)
 
-This is the one thing I genuinely cannot do from here, and it's also the
-single highest-leverage thing left: every bug or decision it turns up
-gives me something concrete to fix or ask you about, instead of me
-hunting for smaller and smaller housekeeping (which is exactly what
-yesterday's session turned into once the obvious real gaps ran out).
-
-~5–8 min per screen: open it, create one item, edit it, and — where it
-makes sense — delete it. You're checking "does this match what I'd
-expect," not hunting for bugs on purpose; the code's already been
-reviewed line by line. If something looks wrong, don't fix it yourself —
-tell me which screen, what you did, and what happened (a screenshot is
-ideal), and I'll take it from there.
-
-In priority order:
-
-1. **Finance** `/finance` — log one month's P&L, check the margin numbers.
-2. **Goals** `/goals` — create a goal → objective → key result, update it.
-3. **Projects** `/projects` — create a project, add yourself, check detail.
-4. **Team** `/team` — confirm the directory and task counts look right.
-5. **Marketing** `/marketing` — all three tabs. Check the **MER** number on
-   Ad spend looks sane. Open a campaign's detail page and confirm any
-   content tagged to it (see #8) shows in **Linked content**, and that
-   clicking one opens it for editing.
-6. **Reviews** `/reviews` — start a weekly review, log metrics, complete it.
-7. **Company Health** `/company/health` — score one of the 11 systems.
-8. **Content** `/content` — create a content idea, move it through a stage,
-   try the **Campaign** field in Advanced.
-9. **SOPs** `/sops` — create one procedure, confirm versioning.
-
-If you only get through half of these, stop wherever you are and send me
-what you found — a partial pass with real findings beats a full pass
-rushed through without really looking.
+Open `/audit-log` (new nav item under System — founder/manager only). You should see
+a chronological feed of real activity — tasks completed, projects updated, inventory
+movements, revenue entries, the auto-reorder and notification cron runs, and so on,
+each with who (or "System" for cron-written rows) and when. Try: the entity-type filter
+chips, paging past 50 rows if you have that much history, and switching EN/繁中 to
+confirm both render. This is the one thing from today I couldn't verify myself —
+everything else in this guide was already click-tested; this wasn't.
 
 ---
 
-## 3. If anything from #2 turns up broken
+## 1. Delete the test pillar (10 seconds)
 
-Send it over as you go rather than batching it to the end — screenshot +
-what you expected vs. what happened. I'll fix what's fixable without more
-input from you, and flag anything that turns out to need a decision.
+I created a pillar called **"Claude test pillar (delete me)"** to verify the create/
+assign flow actually works end-to-end against your live database — it does. It's
+still sitting there.
+
+1. Open `/content`, click **"管理內容支柱"** (Manage pillars).
+2. Click the trash icon next to "Claude test pillar (delete me)".
+3. Confirm the browser's dialog.
+
+That also clears it from the one content item ("Street interview: what chain are you
+wearing?") I'd assigned it to, automatically — nothing else to undo.
 
 ---
 
-## 4. Two decisions, only if you have time and want to unlock more automated work
+## 2. Name your real content pillars (whenever you have 5 minutes)
 
-Not urgent — the app works fine without deciding these today. But each one
-is currently the reason a screen (still) does something manually that it
-could do automatically, and I can't make either call for you:
+The "Manage pillars" panel is otherwise empty — I deliberately didn't invent names for
+your actual content categories. Whatever buckets you actually think in (e.g. "founder
+education," "creator seeding," "product drops" — just examples, not suggestions) go in
+there, each with a color. Once you've added a few, it's worth clicking through
+`/content` once yourself with real pillars assigned — everything I click-tested used
+one throwaway pillar on one item, not your real taxonomy across real content.
 
-- **CRM's monthly metrics** (repeat rate, retention revenue) are manual.
-  Automating them for real needs either a new table that stores individual
-  orders (not just each customer's running totals, which is all that's
-  stored today) or capturing monthly buckets at import time — a real
-  schema decision on live data (5,404 real customers), not something to
-  guess at.
-- **Reviews' metrics** are manually logged each week/month. Auto-pulling
-  them needs you to tell me which numbers actually belong in a weekly vs.
-  monthly review — that's a judgment call about how you run reviews, not
-  something the code can infer.
+---
 
-If either sounds worth 5 minutes of discussion, bring it up and we can
-figure out the approach together — then I can build it.
+## 3. The `creators.cost` decision (touches real data — needs you, not optional busywork)
+
+Found while fixing an unrelated typecheck error: `creators.cost` in your live database
+is set up as **required, defaulting to $0**, when the original design (and the code)
+assumes it can be blank, meaning "unknown." Right now 5 of your 6 creators show cost =
+$0. I can't tell from the data alone which of those are real free/gifted collabs and
+which just never had a number entered — and I didn't want to guess at something that
+touches actual records.
+
+Two things to decide:
+- **Which of your 6 creators actually had a real $0 cost**, if any — so I can write a
+  migration that restores the correct ones to "unknown" instead of leaving them all at
+  $0 by default going forward.
+- **Whether to fix the column at all** — if cost tracking for creators isn't something
+  you rely on day to day, this may not be worth the five minutes. Your call.
+
+If you want to just look at the 6 names yourself first, say the word and I'll pull up
+the creators table.
+
+---
+
+## 4. Still open from earlier sessions, not touched today (no new urgency, just a reminder)
+
+- **Showmore daily sync** — the automatic daily run has been silently failing (see the
+  2026-10-01 entry above); three options are laid out there whenever you want to pick
+  one.
+- **CRM monthly metrics** and **Reviews metrics** — both still manually entered;
+  automating either needs a judgment call from you, not more code exploration. Details
+  in `docs/ARCHITECTURE.md` §0 if you want to revisit.
 
 ---
 
 ## Where to send feedback
 
-Screenshot + what you expected vs. what happened, as you go through §2.
+If anything in Content looks off once you've added real pillars and clicked through
+it yourself, send me what you found — screen, what you did, what happened — and I'll
+take it from there.

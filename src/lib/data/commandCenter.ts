@@ -63,7 +63,9 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
     sb.from('reviews').select('period_start, status').eq('organization_id', orgId).eq('type', 'weekly').order('period_start', { ascending: false }).limit(1).maybeSingle(),
     // Rolling windows for the stall rules: content in the last 7 days, ad spend and
     // order volume over the last 35, all ending on asOf.
-    sb.from('content').select('publish_date, status').eq('organization_id', orgId).eq('status', 'published').gte('publish_date', shiftDays(asOf, -6)).lte('publish_date', asOf),
+    // 'posted' — content.status was collapsed from 8 stages to idea/planned/shot/posted
+    // by migration 0012 (2026-10-02); this used to read 'published'.
+    sb.from('content').select('publish_date, status').eq('organization_id', orgId).eq('status', 'posted').gte('publish_date', shiftDays(asOf, -6)).lte('publish_date', asOf),
     sb.from('ad_spend_daily').select('date, spend').eq('organization_id', orgId).gte('date', shiftDays(asOf, -34)).lte('date', asOf),
     sb.from('v_sales_daily_total').select('date, orders').eq('organization_id', orgId).gte('date', shiftDays(asOf, -34)).lte('date', asOf),
   ]);
@@ -117,7 +119,7 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
 
   // content this week
   const week = content.data ?? [];
-  const published = week.filter(c => c.status === 'published');
+  const published = week.filter(c => c.status === 'posted'); // migration 0012: 'published' -> 'posted'
   const withViews = published.map(c => ({ id: c.id, title: c.title, views: (c.content_metrics as { views: number }[] | null)?.reduce((a, x) => Math.max(a, Number(x.views)), 0) ?? 0 }));
   const weeklyTarget = target('weekly_content');
   const weekElapsed = (daysBetween(w.start, asOf) + 1) / 7;
@@ -168,7 +170,7 @@ export async function getCommandCenter(orgId: string, userId: string, locale: Lo
     ],
     pulse: { revenueToday: Number(today?.gross_revenue ?? 0), ordersToday: Number(today?.orders ?? 0), waiting: Number(ops.data?.orders_waiting ?? 0), csPending: (cs.data ?? []).length,
              lowStock: stockRows.filter(r => r.stock === 'critical' || r.stock === 'low').length, tasksDue: allTasks.filter(t => t.due_date === asOf).length, overdue: overdue.length,
-             publishing: week.filter(c => c.publish_date === asOf && c.status !== 'published').length },
+             publishing: week.filter(c => c.publish_date === asOf && c.status !== 'posted').length },
     journey: { currentMonthlyRunRate: pacing.projectedFinish, annualRunRate: pacing.projectedFinish * 12, stages },
     tasksToday, projects: projectRows.map(({ status: _s, ...p }) => p),
     heroProducts: stockRows.filter(r => r.isHero).map(r => ({ id: r.id, name: r.name, sku: r.sku, onHand: r.onHand, weeks: r.weeks, status: r.stock, revenue30d: r.revenue30d, share: totalRev30 ? (r.revenue30d / totalRev30) * 100 : 0 })).sort((a, b) => b.revenue30d - a.revenue30d),

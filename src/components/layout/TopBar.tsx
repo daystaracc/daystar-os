@@ -6,10 +6,23 @@ import { LocaleSwitch } from './LocaleSwitch';
 import type { Dictionary, Locale } from '@/lib/i18n';
 import { signOut } from '@/app/(auth)/login/actions';
 
-/** Top bar: global search (⌘K), quick create, notifications, date, profile, language switch. */
-export function TopBar({ locale, labels, appLabels, user, unreadCount = 0 }: { locale: Locale; labels: Dictionary['topbar']; appLabels: Dictionary['app']; user: { name: string; avatarUrl?: string | null }; unreadCount?: number }) {
+/**
+ * Top bar: global search (⌘K), quick create, notifications, date, profile, language switch.
+ *
+ * `today` is computed server-side (in `(app)/layout.tsx`, from the same server `Date`
+ * every other request-scoped value comes from) and passed in as a plain string — NOT
+ * computed here with `new Date()`. This file is a client component, so a `new Date()`
+ * called directly in its body runs twice: once during SSR (server clock/timezone) and
+ * again during hydration (browser clock/timezone, Taipei for every real user here,
+ * UTC+8 ahead of Vercel's server). That guaranteed drift was throwing a React #418
+ * hydration-mismatch error on literally every page load, since this top bar sits in
+ * the shared app shell — found 2026-10-01 via the browser console on live traffic,
+ * not something a type check or a code read would have caught. Taking `today` as a
+ * prop removes the client-side recomputation entirely, so there is nothing left to
+ * mismatch.
+ */
+export function TopBar({ locale, labels, appLabels, user, today, unreadCount = 0 }: { locale: Locale; labels: Dictionary['topbar']; appLabels: Dictionary['app']; user: { name: string; avatarUrl?: string | null }; today: string; unreadCount?: number }) {
   const [createOpen, setCreateOpen] = useState(false);
-  const today = new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-TW', { year: 'numeric', month: 'short', day: 'numeric' });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); document.dispatchEvent(new CustomEvent('daystar:open-search')); } };

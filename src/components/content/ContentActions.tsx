@@ -23,7 +23,7 @@ export function ContentStatusControl({ id, status, canEdit, labels }: { id: stri
   const router = useRouter();
   const [pending, start] = useTransition();
 
-  if (!canEdit) return <span className="pill pill-neutral w-28 shrink-0 justify-center">{labels.statusLabels[status]}</span>;
+  if (!canEdit) return <span className="ct-pill ct-pill-neutral w-28 shrink-0 justify-center">{labels.statusLabels[status]}</span>;
 
   function onChange(next: ContentStatus) {
     start(async () => {
@@ -35,7 +35,7 @@ export function ContentStatusControl({ id, status, canEdit, labels }: { id: stri
 
   return (
     <select value={status} disabled={pending} onChange={e => onChange(e.target.value as ContentStatus)}
-      aria-label={labels.statusLabels[status]} className="input h-8 w-28 shrink-0 text-xs">
+      aria-label={labels.statusLabels[status]} className="ct-input h-8 w-28 shrink-0 text-xs">
       {CONTENT_STATUS.map(s => <option key={s} value={s}>{labels.statusLabels[s]}</option>)}
     </select>
   );
@@ -43,7 +43,7 @@ export function ContentStatusControl({ id, status, canEdit, labels }: { id: stri
 
 export function EditContentLink({ id, canEdit, labels }: { id: string; canEdit: boolean; labels: ContentActionsLabels }) {
   if (!canEdit) return null;
-  return <Link href={`?edit=${id}`} scroll={false} aria-label={labels.edit} className="btn-ghost h-7 w-7 shrink-0 px-0"><Pencil className="h-3.5 w-3.5" /></Link>;
+  return <Link href={`?edit=${id}`} scroll={false} aria-label={labels.edit} className="ct-btn ct-btn-ghost h-7 w-7 shrink-0 px-0"><Pencil className="h-3.5 w-3.5" /></Link>;
 }
 
 export function DeleteContentButton({ id, canDelete, labels }: { id: string; canDelete: boolean; labels: ContentActionsLabels }) {
@@ -59,5 +59,5 @@ export function DeleteContentButton({ id, canDelete, labels }: { id: string; can
       router.refresh();
     });
   }
-  return <button type="button" onClick={remove} disabled={pending} aria-label={labels.delete} className="btn-ghost h-7 w-7 shrink-0 px-0 text-bad"><Trash2 className="h-3.5 w-3.5" /></button>;
+  return <button type="button" onClick={remove} disabled={pending} aria-label={labels.delete} className="ct-btn ct-btn-ghost ct-btn-danger h-7 w-7 shrink-0 px-0"><Trash2 className="h-3.5 w-3.5" /></button>;
 }

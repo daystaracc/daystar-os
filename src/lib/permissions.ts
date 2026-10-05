@@ -28,6 +28,12 @@ export const can = {
   // no spend or performance data at all. The spec's permission matrix (§03) shows
   // Marketing as founder/manager only with no member row, matching that.
   viewMarketing: (r: Role) => r === 'founder' || r === 'manager',
+  // `pillars_insert`/`pillars_update` RLS (migration 0012, 2026-10-02): manager-or-
+  // above — mirrors `campaigns`, a content-marketing taxonomy, not founder-only like
+  // `departments`. Deleting a pillar is founder-only (`pillars_delete`), checked
+  // inline in PillarManager.tsx the same way `can.viewFinance`-style role checks are
+  // used elsewhere, rather than adding a second `can.*` entry for one delete button.
+  managePillars: (r: Role) => r === 'founder' || r === 'manager',
   // `customers_all` RLS is founder-only for every operation including select — the
   // strictest table this session has built against — and the spec's own
   // permission matrix (§03) shows CRM as founder-only too (no manager or member
@@ -40,6 +46,11 @@ export const can = {
   // and `organizations_update` RLS (`public.is_founder(id)`, migration 0002) — same
   // founder-only shape as `viewFinance`/`viewCRM`.
   viewSettings: (r: Role) => r === 'founder',
+  // `activity_logs_select` RLS (0002_rls.sql) is manager-or-above with no narrower
+  // spec-vs-RLS gap to account for (unlike viewReviews/viewMarketing/viewCRM above,
+  // which are each deliberately stricter than their table's own RLS) — this mirrors
+  // it exactly.
+  viewAuditLog: (r: Role) => r === 'founder' || r === 'manager',
 };
 
 /** Navigation visible per role. Members land on My Work. */

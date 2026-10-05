@@ -1,4 +1,4 @@
-import { LayoutDashboard, Target, FolderKanban, CheckSquare, TrendingUp, Package, Clapperboard, Megaphone, Users, Boxes, Truck, Wallet, UserRound, ClipboardList, BookOpen, Settings, Upload, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Target, FolderKanban, CheckSquare, TrendingUp, Package, Clapperboard, Megaphone, Users, Boxes, Truck, Wallet, UserRound, ClipboardList, BookOpen, Settings, Upload, Briefcase, History } from 'lucide-react';
 import type { Role } from '@/lib/permissions';
 import type { Dictionary } from '@/lib/i18n';
 
@@ -21,6 +21,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: 'company', items: [{ key: 'team', href: '/team', icon: UserRound }, { key: 'reviews', href: '/reviews', icon: ClipboardList, roles: ['founder', 'manager'] }, { key: 'sops', href: '/sops', icon: BookOpen }] },
   { key: 'system', items: [
     { key: 'importProducts', href: '/settings/import', icon: Upload, roles: ['founder', 'manager'] },
+    { key: 'auditLog', href: '/audit-log', icon: History, roles: ['founder', 'manager'] },
     { key: 'settings', href: '/settings', icon: Settings, roles: ['founder'] },
   ] },
 ];

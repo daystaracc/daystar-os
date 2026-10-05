@@ -5,7 +5,7 @@ export const en = {
     groups: { command: 'Command Center', plan: 'Plan', grow: 'Grow', operate: 'Operate', company: 'Company', system: 'System' },
     overview: 'Overview', goals: 'Goals', projects: 'Projects', tasks: 'Tasks', revenue: 'Revenue', products: 'Products', content: 'Content',
     marketing: 'Marketing', crm: 'CRM', inventory: 'Inventory', operations: 'Operations', finance: 'Finance', team: 'Team', reviews: 'Reviews',
-    sops: 'SOPs', settings: 'Settings', importProducts: 'Import', myWork: 'My Work', founder: 'Founder View', collapse: 'Collapse sidebar', expand: 'Expand sidebar',
+    sops: 'SOPs', settings: 'Settings', importProducts: 'Import', auditLog: 'Audit Log', myWork: 'My Work', founder: 'Founder View', collapse: 'Collapse sidebar', expand: 'Expand sidebar',
   },
   topbar: { search: 'Search…', searchHint: '⌘K', quickCreate: 'Quick create', notifications: 'Notifications', profile: 'Profile', signOut: 'Sign out',
     create: { task: 'New task', project: 'New project', revenue: 'Add revenue', product: 'Add product', inventory: 'Inventory adjustment', content: 'New content', campaign: 'New campaign', note: 'Meeting note' } },
@@ -215,18 +215,26 @@ export const en = {
   },
   content: {
     heading: 'Content', newContent: 'New content', editContent: 'Edit content',
-    title: 'Title', type: 'Type', platform: 'Platform', product: 'Product', campaign: 'Campaign', status: 'Status',
+    title: 'Title', type: 'Type', platform: 'Platform', product: 'Product', campaign: 'Campaign', pillar: 'Pillar', status: 'Status',
     talent: 'Talent', concept: 'Concept', hook: 'Hook', shootDate: 'Shoot date', publishDate: 'Publish date', url: 'Link', notes: 'Notes',
-    noOwner: 'Unassigned', noProduct: 'No product', noCampaign: 'No campaign',
+    noOwner: 'Unassigned', noProduct: 'No product', noCampaign: 'No campaign', noPillar: 'No pillar',
     type_: { short_video: 'Short video', photo: 'Photo', carousel: 'Carousel', story: 'Story', live: 'Live', long_video: 'Long video', other: 'Other' },
     platform_: { instagram: 'Instagram', tiktok: 'TikTok', youtube_shorts: 'YouTube Shorts', facebook: 'Facebook', other: 'Other' },
-    status_: { idea: 'Idea', script: 'Script', ready_to_shoot: 'Ready to shoot', shot: 'Shot', editing: 'Editing', review: 'Review', scheduled: 'Scheduled', published: 'Published' },
-    weeklyPace: 'This week', weeklyPaceHint: 'Published this week vs the weekly content target.', noTarget: 'No weekly content target set for this week yet.',
+    // Collapsed 2026-10-02 (migration 0012) from an 8-stage pipeline to this
+    // 4-value vocabulary — see lib/content/constants.ts's CONTENT_STATUS comment.
+    status_: { idea: 'Idea', planned: 'Planned', shot: 'Shot', posted: 'Posted' },
+    weeklyPace: 'This week', weeklyPaceHint: 'Posted this week vs the weekly content target.', noTarget: 'No weekly content target set for this week yet.',
     save: 'Save', saving: 'Saving…', cancel: 'Cancel', create: 'Create', delete: 'Delete content',
     deleteConfirm: 'Delete this content piece? This cannot be undone.',
     saveFailed: 'Could not save — check the form and try again.',
     empty: 'No content yet.', emptyFiltered: 'Nothing at this stage.', loadFailed: 'Could not load content.',
     noPublishDate: 'No publish date',
+    // Pillars (added 2026-10-02, migration 0012) — the main categorization axis.
+    allPillars: 'All pillars', managePillars: 'Manage pillars', newPillar: 'New pillar', editPillar: 'Edit pillar',
+    pillarName: 'Pillar name', pillarNameZh: 'Pillar name (繁體中文)', pillarColor: 'Color',
+    savePillar: 'Save pillar', deletePillar: 'Delete pillar', deletePillarConfirm: 'Delete this pillar? Content on it keeps the piece, just loses the pillar. This cannot be undone.',
+    pillarsEmpty: 'No pillars yet — add one to start categorizing content.', pillarSaveFailed: 'Could not save — check the name and try again (it may already be in use).',
+    color_: { gold: 'Gold', rose: 'Rose', sage: 'Sage', sky: 'Sky', violet: 'Violet', bronze: 'Bronze', ember: 'Ember', slate: 'Slate' },
   },
   sops: {
     heading: 'SOPs', newSop: 'New SOP', editSop: 'Edit SOP',
@@ -409,5 +417,16 @@ export const en = {
     empty: "You're all caught up — nothing here yet.",
     unreadTab: 'Unread', allTab: 'All', markAllRead: 'Mark all as read', markRead: 'Mark as read', unread: '{n} unread',
     loadFailed: 'Could not load notifications.',
+  },
+  auditLog: {
+    title: 'Audit Log', subtitle: 'Every tracked change across the app, newest first.',
+    empty: 'Nothing recorded yet.', loadFailed: 'Could not load the audit log.',
+    allTypes: 'All', system: 'System', prev: 'Previous', next: 'Next', pageOf: 'Page {page} of {pageCount}', total: '{n} total',
+    entityTypes: {
+      tasks: 'Task', projects: 'Project', inventory_movements: 'Inventory movement', sales_daily: 'Revenue entry',
+      targets: 'Target', financial_monthly: 'Monthly finance', key_results: 'Key result', business_systems: 'Health score',
+      auto_reorder_tasks: 'Auto-reorder (cron)', notifications_fanout: 'Notifications fan-out (cron)',
+      showmore_scheduled_sync: 'Showmore scheduled sync', showmore_order_sync: 'Showmore order sync',
+    },
   },
 } as const;

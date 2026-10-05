@@ -24,12 +24,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { locale, dict } = await getT(profile?.locale);
   const role = membership.role as Role;
+  // Computed once, server-side, and passed into TopBar as a plain string — see the
+  // comment on TopBar's `today` prop for why this must never move back into that
+  // client component's own render (it was a real, global React #418 hydration bug
+  // in production until 2026-10-01: SSR ran on the server's clock/timezone, hydration
+  // re-ran it on the browser's, and the two don't agree for Taipei users on a
+  // UTC-hosted Vercel function).
+  const today = new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'zh-TW', { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
     <div className="flex min-h-screen">
       <Sidebar role={role} nav={dict.nav} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar locale={locale} labels={dict.topbar} appLabels={dict.app} user={{ name: profile?.display_name ?? profile?.full_name ?? '', avatarUrl: profile?.avatar_url }} unreadCount={unreadCount ?? 0} />
+        <TopBar locale={locale} labels={dict.topbar} appLabels={dict.app} user={{ name: profile?.display_name ?? profile?.full_name ?? '', avatarUrl: profile?.avatar_url }} today={today} unreadCount={unreadCount ?? 0} />
         <main className="mx-auto w-full max-w-[1440px] flex-1 px-6 py-6 lg:px-10">{children}</main>
       </div>
       <CommandPalette role={role} nav={dict.nav} labels={dict.search} />
