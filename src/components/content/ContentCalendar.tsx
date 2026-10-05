@@ -59,9 +59,9 @@ export function ContentCalendar({ items, month, asOf, locale, labels }: {
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold">{first.toLocaleDateString(loc, { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h2>
         <div className="ml-auto flex items-center gap-1">
-          <Link href={`?view=calendar&month=${shift(-1)}`} scroll={false} aria-label={labels.calendarPrev} className="ct-btn ct-btn-ghost h-8 w-8 px-0"><ChevronLeft className="h-4 w-4" /></Link>
+          <Link href={`?view=calendar&month=${shift(-1)}`} scroll={false} aria-label={labels.calendarPrev} className="ct-btn ct-btn-ghost ct-btn-icon h-8 w-8"><ChevronLeft className="h-4 w-4" /></Link>
           <Link href="?view=calendar" scroll={false} className="ct-btn h-8 px-3 text-sm">{labels.calendarToday}</Link>
-          <Link href={`?view=calendar&month=${shift(1)}`} scroll={false} aria-label={labels.calendarNext} className="ct-btn ct-btn-ghost h-8 w-8 px-0"><ChevronRight className="h-4 w-4" /></Link>
+          <Link href={`?view=calendar&month=${shift(1)}`} scroll={false} aria-label={labels.calendarNext} className="ct-btn ct-btn-ghost ct-btn-icon h-8 w-8"><ChevronRight className="h-4 w-4" /></Link>
         </div>
       </div>
 

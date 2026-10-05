@@ -96,7 +96,7 @@ export function PillarManager({ pillars, canManage, canDelete, labels }: {
             className="ct-modal-panel p-5 space-y-4" onClick={e => e.stopPropagation()}>
             <header className="flex items-center justify-between">
               <h2 className="ct-eyebrow text-sm">{labels.managePillars}</h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label={labels.close} className="ct-btn ct-btn-ghost h-8 w-8 px-0"><X className="h-4 w-4" /></button>
+              <button type="button" onClick={() => setOpen(false)} aria-label={labels.close} className="ct-btn ct-btn-ghost ct-btn-icon h-8 w-8"><X className="h-4 w-4" /></button>
             </header>
 
             {error && <p className="ct-pill ct-pill-bad rounded-md px-3 py-2 text-sm">{error}</p>}
@@ -120,9 +120,9 @@ export function PillarManager({ pillars, canManage, canDelete, labels }: {
                       <div className="flex items-center gap-2">
                         <span className="ct-dot" style={{ background: PILLAR_VAR[p.color] }} />
                         <span className="min-w-0 flex-1 truncate text-sm">{p.name}</span>
-                        <button type="button" onClick={() => openEdit(p)} aria-label={labels.editPillar} className="ct-btn ct-btn-ghost h-7 w-7 shrink-0 px-0"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => openEdit(p)} aria-label={labels.editPillar} className="ct-btn ct-btn-ghost ct-btn-icon h-7 w-7 shrink-0"><Pencil className="h-3.5 w-3.5" /></button>
                         {canDelete && (
-                          <button type="button" onClick={() => remove(p.id)} disabled={pending} aria-label={labels.deletePillar} className="ct-btn ct-btn-ghost ct-btn-danger h-7 w-7 shrink-0 px-0"><Trash2 className="h-3.5 w-3.5" /></button>
+                          <button type="button" onClick={() => remove(p.id)} disabled={pending} aria-label={labels.deletePillar} className="ct-btn ct-btn-ghost ct-btn-danger ct-btn-icon h-7 w-7 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>
                         )}
                       </div>
                     )}

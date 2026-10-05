@@ -43,7 +43,7 @@ export function ContentStatusControl({ id, status, canEdit, labels }: { id: stri
 
 export function EditContentLink({ id, canEdit, labels }: { id: string; canEdit: boolean; labels: ContentActionsLabels }) {
   if (!canEdit) return null;
-  return <Link href={`?edit=${id}`} scroll={false} aria-label={labels.edit} className="ct-btn ct-btn-ghost h-7 w-7 shrink-0 px-0"><Pencil className="h-3.5 w-3.5" /></Link>;
+  return <Link href={`?edit=${id}`} scroll={false} aria-label={labels.edit} className="ct-btn ct-btn-ghost ct-btn-icon h-7 w-7 shrink-0"><Pencil className="h-3.5 w-3.5" /></Link>;
 }
 
 export function DeleteContentButton({ id, canDelete, labels }: { id: string; canDelete: boolean; labels: ContentActionsLabels }) {
@@ -59,5 +59,5 @@ export function DeleteContentButton({ id, canDelete, labels }: { id: string; can
       router.refresh();
     });
   }
-  return <button type="button" onClick={remove} disabled={pending} aria-label={labels.delete} className="ct-btn ct-btn-ghost ct-btn-danger h-7 w-7 shrink-0 px-0"><Trash2 className="h-3.5 w-3.5" /></button>;
+  return <button type="button" onClick={remove} disabled={pending} aria-label={labels.delete} className="ct-btn ct-btn-ghost ct-btn-danger ct-btn-icon h-7 w-7 shrink-0"><Trash2 className="h-3.5 w-3.5" /></button>;
 }

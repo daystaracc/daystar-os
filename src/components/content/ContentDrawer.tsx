@@ -95,7 +95,7 @@ export function ContentDrawer({ options, labels, content, onCloseHref }: {
         className="ct-drawer-panel relative flex h-full w-full max-w-[30rem] animate-fade-up flex-col">
         <header className="flex h-14 shrink-0 items-center justify-between px-5" style={{ borderBottom: '1px solid var(--ct-hairline)' }}>
           <h2 className="ct-eyebrow text-sm">{editing ? labels.editContent : labels.newContent}</h2>
-          <button onClick={close} aria-label={labels.close} className="ct-btn ct-btn-ghost h-8 w-8 px-0"><X className="h-4 w-4" /></button>
+          <button onClick={close} aria-label={labels.close} className="ct-btn ct-btn-ghost ct-btn-icon h-8 w-8"><X className="h-4 w-4" /></button>
         </header>
 
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
