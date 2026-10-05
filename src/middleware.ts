@@ -26,4 +26,14 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|api/public).*)'] };
+// api/cron/*, api/internal/*, and api/webhooks/* are server-to-server routes
+// authenticated by their own header secret (CRON_SECRET / x-sync-secret / HMAC
+// signature) — never by a logged-in Supabase session. Before this exclusion,
+// every one of those requests had no `user`, so this middleware redirected it
+// to /login (307) before the route handler's own auth check ever ran. Vercel
+// logs a 307 as a normal response, so this failed silently: the cron jobs
+// never executed, on schedule or via the dashboard's manual "Run" button, and
+// nothing in the UI showed an error — it just looked like "Run" did nothing.
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|icons|manifest.webmanifest|api/public|api/cron|api/internal|api/webhooks).*)'],
+};
