@@ -73,6 +73,12 @@
    `app/(app)/content/layout.tsx`, which also loads the three Google Fonts
    below scoped to just that route segment.
    ------------------------------------------------------------------------- */
+/* Wrapped in @layer components (2026-10-05 fix — see the matching note at the
+   bottom of this block) so Tailwind's utility classes (emitted into
+   @layer utilities by the @tailwind directives at the top of this file) can
+   actually override these rules, the way `px-0`/`h-7`/`w-7` etc. are meant to
+   everywhere else in this codebase. */
+@layer components {
 .content-theme {
   --ct-bg: #0b0b0d; --ct-surface: #17151b; --ct-surface-2: #1d1a22; --ct-field: #131117;
   --ct-hairline: rgba(243, 239, 230, .09); --ct-line: rgba(201, 162, 78, .28);
@@ -99,6 +105,19 @@
 .content-theme .ct-label { font-family: var(--font-ct-mono, ui-monospace, monospace); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ct-muted-2); }
 .content-theme .ct-muted { color: var(--ct-muted); }
 .content-theme .ct-muted-2 { color: var(--ct-muted-2); }
+/* padding here is a base default only — every icon-only button in this module (the
+   Pencil/Trash2/X/Plus buttons in PillarManager.tsx and ContentActions.tsx) relies on
+   Tailwind's `px-0` utility to zero it out and size itself purely from `h-7 w-7`. That
+   override silently failed before this block was wrapped in @layer components above
+   (2026-10-05): unlayered CSS beats layered CSS regardless of specificity, so this
+   14.4px padding was winning over `px-0` on every one of those buttons, leaving ~2px
+   of content box inside a 28px square — just enough for flexbox's "automatic minimum
+   size is 0 when overflow isn't visible" rule to collapse the icon's width to 0 while
+   its height rendered fine (height is the cross axis in a row flex container, not
+   subject to the same shrink). Net effect: every icon-only button in Content rendered
+   as a blank box — functionally wired (confirm()/onClick all fired correctly), just
+   visually empty. Found 2026-10-05 from a live screenshot Lucas sent of the "Manage
+   pillars" panel. */
 .content-theme .ct-btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; height: 2.25rem; padding: 0 .9rem; border-radius: var(--r-md); font-size: .82rem; font-weight: 700; border: 1px solid var(--ct-hairline); background: var(--ct-surface); color: var(--ct-paper); transition: border-color .15s, background .15s, filter .15s; }
 .content-theme .ct-btn:hover { border-color: var(--ct-gold); }
 .content-theme .ct-btn:disabled { opacity: .5; cursor: not-allowed; }
@@ -160,3 +179,4 @@
 .content-theme .ct-row-hover { transition: background-color .12s; }
 .content-theme .ct-row-hover:hover { background: var(--ct-surface-2); }
 .content-theme .ct-divide-y > * + * { border-top: 1px solid var(--ct-hairline); }
+} /* end @layer components (.content-theme) — 2026-10-05 fix, see note above */
